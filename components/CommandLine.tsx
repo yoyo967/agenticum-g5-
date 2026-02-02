@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { ICONS } from '../constants';
 
 interface CommandLineProps {
@@ -8,10 +9,47 @@ interface CommandLineProps {
   disabled: boolean;
 }
 
+const PRESETS = [
+  { id: 'pres-01', label: 'Market Entry Sim', cmd: 'Execute a forensic market entry simulation for a high-tech obsidian hardware brand.' },
+  { id: 'pres-02', label: 'Brand Anthem', cmd: 'Compose an authoritative brand anthem sequence. Generate acoustic signature and temporal visual storyboard.' },
+  { id: 'pres-03', label: 'Competitor Audit', cmd: 'Perform a GATES-verified strategic audit of top global competitors in the agentic AI sector.' },
+  { id: 'pres-04', label: 'IP Defense Plan', cmd: 'Formulate a sovereign IP defense and deep-fake mitigation strategy for a global marketing infrastructure.' },
+];
+
 const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, isLive, disabled }) => {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState<{ data: string, mimeType: string, name?: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (isLive && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const draw = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#00ff88';
+        const barWidth = 2;
+        const barSpacing = 1;
+        const barCount = Math.floor(canvas.width / (barWidth + barSpacing));
+        
+        for (let i = 0; i < barCount; i++) {
+          const height = Math.random() * canvas.height * 0.8 + 2;
+          const x = i * (barWidth + barSpacing);
+          const y = canvas.height - height;
+          ctx.fillRect(x, y, barWidth, height);
+        }
+        animationRef.current = requestAnimationFrame(draw);
+      };
+      draw();
+    } else {
+      cancelAnimationFrame(animationRef.current);
+    }
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [isLive]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +81,21 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, isLi
     <div className="p-4 border-t border-steel bg-void/80 backdrop-blur-xl relative z-20">
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-steel/50 to-transparent"></div>
       
+      <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide">
+        <span className="text-[7px] text-tungsten font-black uppercase tracking-widest self-center mr-2">Presets:</span>
+        {PRESETS.map(preset => (
+          <button
+            key={preset.id}
+            type="button"
+            disabled={disabled || isLive}
+            onClick={() => onExecute(preset.cmd)}
+            className="shrink-0 text-[8px] font-mono border border-steel/30 px-3 py-1 text-tungsten hover:text-neon hover:border-neon/40 hover:bg-neon/5 transition-all uppercase tracking-tighter"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
       {files.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {files.map((f, i) => (
@@ -70,6 +123,7 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, isLi
               onClick={() => fileInputRef.current?.click()}
               className="text-tungsten hover:text-neon transition-all duration-150 transform hover:scale-110 active:scale-90"
               title="Attach Protocol Assets"
+              disabled={disabled || isLive}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </button>
@@ -89,24 +143,35 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, isLi
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={disabled || isLive}
-            placeholder={isLive ? "LIVE_BRIDGE_ACTIVE: STANDBY FOR INPUT..." : disabled ? "NODE_COMPUTING: BUFFERING COMMAND..." : ">> DEPLOY_SEQUENCE_PARAMETER"}
+            placeholder={isLive ? "LIVE_BRIDGE_ACTIVE: SPEAK NOW..." : disabled ? "NODE_COMPUTING: BUFFERING COMMAND..." : ">> DEPLOY_SEQUENCE_PARAMETER"}
             className="w-full bg-obsidian border border-steel group-hover:border-steel/80 focus:border-neon focus:ring-1 focus:ring-neon/20 focus:outline-none py-3.5 pl-14 pr-4 text-chrome font-mono text-xs transition-all placeholder:text-tungsten tracking-wider uppercase"
           />
+
+          {isLive && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-6 flex items-center pointer-events-none">
+              <canvas ref={canvasRef} width="128" height="24" className="w-full h-full opacity-60" />
+            </div>
+          )}
         </div>
         
         <div className="flex gap-2">
             <button
               type="button"
               onClick={onToggleLive}
-              className={`px-4 border transition-all flex items-center gap-2 ${
+              className={`px-4 border transition-all flex items-center gap-2 group relative ${
                 isLive 
-                ? 'border-active bg-active/5 text-active shadow-[0_0_15px_rgba(0,255,136,0.2)]' 
+                ? 'border-active bg-active/10 text-active shadow-[0_0_25px_rgba(0,255,136,0.3)]' 
                 : 'border-steel bg-void text-tungsten hover:text-active hover:border-active/50'
               }`}
-              title="Activate High-Fidelity Voice Interface"
+              title={isLive ? "Terminate Voice Uplink" : "Activate High-Fidelity Voice Interface"}
             >
-               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={isLive ? 'animate-pulse' : ''}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-               <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">{isLive ? 'LIVE' : 'VOICE'}</span>
+               {isLive && (
+                 <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+                   <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-active to-transparent animate-[loading_1.5s_infinite]"></div>
+                 </div>
+               )}
+               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={isLive ? 'animate-pulse scale-110' : ''}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+               <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">{isLive ? 'TERMINATE' : 'VOICE'}</span>
             </button>
 
             <button 
@@ -128,7 +193,7 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, isLi
       <div className="mt-2 flex justify-between px-1">
         <div className="flex gap-4">
            <span className="text-[7px] text-tungsten/50 uppercase font-mono">Input_Buffer: {input.length} chrs</span>
-           <span className="text-[7px] text-tungsten/50 uppercase font-mono">Encryption: AES-256</span>
+           <span className="text-[7px] text-tungsten/50 uppercase font-mono">Encryption: AES-GCM</span>
         </div>
         <div className="flex gap-4">
            <span className="text-[7px] text-tungsten/50 uppercase font-mono underline decoration-neon/20 hover:text-neon cursor-pointer">Protocol_Docs</span>

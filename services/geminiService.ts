@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { DeploymentConfig, NodeOutput, FileData } from "../types";
 
 export const executeNodeAction = async (
@@ -9,232 +9,146 @@ export const executeNodeAction = async (
 ): Promise<NodeOutput> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const startTime = Date.now();
-
   const nodeId = config.nodeId;
-  const isCreation = nodeId.startsWith('CC');
+
+  // Strategic/Research nodes trigger GATES and System 2 Thinking
+  const isStrategic = nodeId.startsWith('SP') || nodeId === 'SN-00';
   const isResearch = nodeId.startsWith('RA');
+  const isGATESRequired = isStrategic || isResearch;
   
-  // Specific intent detection
-  const isVideoGen = /video|movie|film|animate|veo|sequence|motion/i.test(prompt) || nodeId === 'CC-06';
-  const isImageGenOrEdit = /image|picture|photo|draw|art|filter|edit|remove|visual|graphics/i.test(prompt) || nodeId === 'CC-10';
-  const isAudioGen = /speak|audio|tts|voice|say|talk/i.test(prompt) || nodeId === 'CC-12';
-  const isMapsRequest = /map|location|nearby|restaurant|address|find|place|directions/i.test(prompt);
-  const isSearchRequest = (isResearch || /search|google|current|news|latest|who is|status of/i.test(prompt)) && !isMapsRequest;
-  const isVideoUnderstanding = files?.some(f => f.mimeType.startsWith('video/'));
-  const isImageUnderstanding = files?.some(f => f.mimeType.startsWith('image/')) && !isImageGenOrEdit;
+  // Multimodal intent detectors
+  const isVideoGen = /video|movie|veo|animate|motion|film/i.test(prompt) || nodeId === 'CC-06';
+  const isImageGen = /image|picture|photo|draw|art|illustration/i.test(prompt) || nodeId === 'CC-10';
+  const isAudioGen = /speak|audio|voice|tts|say/i.test(prompt) || nodeId === 'CC-12';
+  const isMapsRequest = /map|location|nearby|find|restaurant|place|address/i.test(prompt);
+  const isSearchRequest = (isResearch || /search|google|news|current|trend/i.test(prompt)) && !isMapsRequest;
 
   try {
-    // 1. VIDEO GENERATION (VEO 3.1 FAST)
+    // 1. VIDEO GENERATION (VEO 3.1)
     if (isVideoGen) {
-      const veoParams: any = {
+      let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
-        prompt: prompt,
-        config: {
-          numberOfVideos: 1,
-          resolution: '720p',
-          aspectRatio: config.aspectRatio === '9:16' ? '9:16' : '16:9'
-        }
-      };
-
-      const referenceImage = files?.find(f => f.mimeType.startsWith('image/'));
-      if (referenceImage) {
-        veoParams.image = {
-          imageBytes: referenceImage.data,
-          mimeType: referenceImage.mimeType
-        };
-      }
-
-      let operation = await ai.models.generateVideos(veoParams);
+        prompt: `Industrial cinematic marketing asset: ${prompt}. Precise, authoritative, obsidian and chrome palette.`,
+        config: { resolution: '720p', aspectRatio: config.aspectRatio === '9:16' ? '9:16' : '16:9' }
+      });
       while (!operation.done) {
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        await new Promise(resolve => setTimeout(resolve, 10000));
         operation = await ai.operations.getVideosOperation({ operation: operation });
       }
-
-      const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
       return {
-        nodeId,
-        status: 'success',
-        data: "Temporal synthesis sequence finalized. Asset buffer updated.",
-        artifacts: [{
-          type: 'video',
-          content: `${videoUri}&key=${process.env.API_KEY}`,
-          metadata: { model: 'veo-3.1-fast-generate-preview' }
-        }],
-        executionTime: Date.now() - startTime
+        nodeId, status: 'success', executionTime: Date.now() - startTime,
+        data: "Temporal synthesis sequence finalized via Veo 3.1 engine.",
+        artifacts: [{ type: 'video', content: `${operation.response?.generatedVideos?.[0]?.video?.uri}&key=${process.env.API_KEY}`, metadata: { model: 'veo-3.1-fast-generate-preview' } }]
       };
     }
 
-    // 2. IMAGE GENERATION / EDITING
-    if (isImageGenOrEdit) {
-      const imageFiles = files?.filter(f => f.mimeType.startsWith('image/')) || [];
-      const isEditing = imageFiles.length > 0 || /edit|filter|remove|change|add/i.test(prompt);
-      
-      if (isEditing) {
-        const parts: any[] = imageFiles.map(f => ({
-          inlineData: { data: f.data, mimeType: f.mimeType }
-        }));
-        parts.push({ text: prompt });
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: { parts }
+    // 2. IMAGE GENERATION (Gemini 2.5 Flash Image)
+    if (isImageGen) {
+      const useImagen = /imagen/i.test(prompt);
+      if (useImagen) {
+        const response = await ai.models.generateImages({
+          model: 'imagen-4.0-generate-001',
+          prompt: `Industrial design, chrome textures, obsidian lighting, professional photography: ${prompt}`,
+          config: { numberOfImages: 1, aspectRatio: config.aspectRatio === '9:16' ? '9:16' : '1:1' }
         });
-
-        let imageUrl = "";
-        for (const part of response.candidates?.[0]?.content?.parts || []) {
-          if (part.inlineData) imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        }
-
+        const base64 = response.generatedImages[0].image.imageBytes;
         return {
-          nodeId,
-          status: 'success',
-          data: "Neural visual modification cycle complete.",
-          artifacts: [{ type: 'image', content: imageUrl, metadata: { model: 'gemini-2.5-flash-image' } }],
-          executionTime: Date.now() - startTime
+          nodeId, status: 'success', executionTime: Date.now() - startTime,
+          data: "High-fidelity visual asset forged via Imagen 4.0.",
+          artifacts: [{ type: 'image', content: `data:image/png;base64,${base64}`, metadata: { model: 'imagen-4.0-generate-001' } }]
         };
       } else {
         const response = await ai.models.generateContent({
-          model: 'gemini-3-pro-image-preview',
-          contents: { parts: [{ text: prompt }] },
-          config: {
-            imageConfig: {
-              aspectRatio: (config.aspectRatio as any) || "1:1",
-              imageSize: config.imageSize || "1K"
-            }
-          }
+          model: 'gemini-2.5-flash-image',
+          contents: { parts: [{ text: `Generate an industrial architectural marketing visual: ${prompt}. Chrome and obsidian theme.` }] },
+          config: { imageConfig: { aspectRatio: config.aspectRatio === '9:16' ? '9:16' : '1:1' } }
         });
-
-        let imageUrl = "";
-        for (const part of response.candidates?.[0]?.content?.parts || []) {
-          if (part.inlineData) imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+        if (part?.inlineData) {
+          return {
+            nodeId, status: 'success', executionTime: Date.now() - startTime,
+            data: "Visual synthesis complete via Gemini 2.5 Flash Image.",
+            artifacts: [{ type: 'image', content: `data:image/png;base64,${part.inlineData.data}`, metadata: { model: 'gemini-2.5-flash-image' } }]
+          };
         }
-
-        return {
-          nodeId,
-          status: 'success',
-          data: `Synthetic asset generation confirmed. Configuration: [Ratio: ${config.aspectRatio}, Scale: ${config.imageSize}].`,
-          artifacts: [{ type: 'image', content: imageUrl, metadata: { model: 'gemini-3-pro-image-preview' } }],
-          executionTime: Date.now() - startTime
-        };
       }
     }
 
-    // 3. SPEECH GENERATION (TTS)
+    // 3. AUDIO SYNTHESIS (Gemini TTS)
     if (isAudioGen) {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-preview-tts',
-        contents: [{ parts: [{ text: prompt }] }],
+      const audioResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: `Industrial Protocol Briefing: ${prompt}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
-          }
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } }
         }
       });
-
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const audioData = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       return {
-        nodeId,
-        status: 'success',
-        data: "Acoustic synthesis complete. Audio stream ready.",
-        artifacts: [{ type: 'audio', content: `data:audio/pcm;base64,${base64Audio}`, metadata: { model: 'gemini-2.5-flash-preview-tts' } }],
-        executionTime: Date.now() - startTime
+        nodeId, status: 'success', executionTime: Date.now() - startTime,
+        data: "Acoustic signature synthesized.",
+        artifacts: [{ type: 'audio', content: audioData || '', metadata: { model: 'gemini-2.5-flash-preview-tts' } }]
       };
     }
 
-    // 4. MAPS GROUNDING
-    if (isMapsRequest) {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { tools: [{ googleMaps: {} }] }
-      });
-
-      return {
-        nodeId,
-        status: 'success',
-        data: response.text,
-        grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks,
-        reasoning: "Spatial data retrieval via Google Maps integration.",
-        executionTime: Date.now() - startTime
-      };
-    }
-
-    // 5. SEARCH GROUNDING
-    if (isSearchRequest) {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: { tools: [{ googleSearch: {} }] }
-      });
-
-      return {
-        nodeId,
-        status: 'success',
-        data: response.text,
-        grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks,
-        reasoning: "External knowledge scan via Google Search grounding.",
-        executionTime: Date.now() - startTime
-      };
-    }
-
-    // 6. MULTIMODAL UNDERSTANDING
-    if (isVideoUnderstanding || isImageUnderstanding) {
-      const parts: any[] = [];
-      files?.forEach(f => parts.push({ inlineData: { data: f.data, mimeType: f.mimeType } }));
-      parts.push({ text: prompt });
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: { parts },
-        config: {
-            thinkingConfig: config.thinkingBudget > 0 ? { thinkingBudget: config.thinkingBudget } : undefined
-        }
-      });
-
-      return {
-        nodeId,
-        status: 'success',
-        data: response.text,
-        reasoning: "Complex multimodal feature extraction complete.",
-        executionTime: Date.now() - startTime
-      };
-    }
-
-    // 7. GENERAL REASONING & FAST AI
-    const isFast = /fast|quick|lite|check/i.test(prompt) || nodeId.startsWith('MI');
-    const model = isFast ? 'gemini-2.5-flash-lite' : 'gemini-3-pro-preview';
+    // 4. CORE REASONING & GROUNDING
+    const requestedThinking = isStrategic ? 32768 : (config.thinkingBudget || 0);
+    const maxTokens = requestedThinking > 0 ? requestedThinking + (config.maxTokens || 4000) : (config.maxTokens || 4000);
     
-    const parts: any[] = [];
-    if (files && files.length > 0) {
-      files.forEach(f => parts.push({ inlineData: { data: f.data, mimeType: f.mimeType } }));
+    // Maps grounding is only supported in Gemini 2.5 series
+    const model = isMapsRequest ? 'gemini-2.5-flash-lite-latest' : (isGATESRequired ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview');
+
+    const contents = files ? [
+      ...files.map(f => ({ inlineData: { data: f.data, mimeType: f.mimeType } })),
+      { text: prompt }
+    ] : prompt;
+
+    let latLng = undefined;
+    if (isMapsRequest) {
+      try {
+        const pos: any = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        latLng = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      } catch (e) {
+        console.warn("Geolocation fallback to core coordinates.");
+        latLng = { latitude: 37.7749, longitude: -122.4194 }; // Default to SF
+      }
     }
-    parts.push({ text: prompt });
 
     const response = await ai.models.generateContent({
       model,
-      contents: { parts },
+      contents,
       config: {
-        thinkingConfig: (!isFast && config.thinkingBudget > 0) ? { thinkingBudget: config.thinkingBudget } : undefined,
-        maxOutputTokens: (!isFast && config.thinkingBudget > 0) ? undefined : config.maxTokens
+        systemInstruction: `You are node ${nodeId} of the AGENTICUM G5 OS. Use ultimate precision. Maintain industrial authority. English only. If performing strategic analysis, provide a detailed reasoning trace before the final directive.`,
+        thinkingConfig: requestedThinking > 0 && !isMapsRequest ? { thinkingBudget: requestedThinking } : undefined,
+        maxOutputTokens: maxTokens,
+        tools: isSearchRequest ? [{ googleSearch: {} }] : isMapsRequest ? [{ googleMaps: {} }] : undefined,
+        toolConfig: isMapsRequest ? { retrievalConfig: { latLng } } : undefined,
       }
+    });
+
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map(chunk => {
+        if (chunk.maps) return { maps: { uri: chunk.maps.uri, title: chunk.maps.title || "GEO_TARGET" } };
+        if (chunk.web) return { web: { uri: chunk.web.uri, title: chunk.web.title } };
+        return chunk;
     });
 
     return {
       nodeId,
       status: 'success',
       data: response.text,
-      reasoning: !isFast && config.thinkingBudget > 0 ? `High-precision reasoning engaged (${config.thinkingBudget}t budget).` : `Synthesized via low-latency ${model}.`,
+      grounding: groundingChunks,
+      reasoning: isStrategic ? `Strategic Thinking cycle engaged (${requestedThinking} tokens).` : undefined,
       executionTime: Date.now() - startTime
     };
 
   } catch (error: any) {
-    console.error(`Fault in Node ${nodeId}:`, error);
+    console.error("G5_System_Fault:", error);
     return {
-      nodeId,
-      status: 'error',
-      data: `COGNITIVE_FAULT_0x88: ${error.message || 'Logic deadlock encountered.'}`,
-      executionTime: Date.now() - startTime
+      nodeId, status: 'error', executionTime: Date.now() - startTime,
+      data: `FAULT_ID_${(Date.now() % 0xFFFF).toString(16).toUpperCase()}: ${error.message || 'Logical exception in neural fabric.'}`
     };
   }
 };

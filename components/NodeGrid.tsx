@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AgentNode, NodeStatus, ClusterType } from '../types';
 import { ICONS, CLUSTERS } from '../constants';
@@ -59,8 +60,8 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
                 className="w-full flex items-center justify-between px-2 py-1.5 bg-steel/10 border-b border-steel/20 group hover:bg-steel/20 transition-all duration-75"
               >
                 <div className="flex items-center gap-2">
-                  <div className={`w-1 h-3 ${isExpanded ? 'bg-neon' : 'bg-steel'} transition-colors duration-200`} />
-                  <span className="text-[9px] font-black text-tungsten uppercase tracking-widest group-hover:text-chrome transition-colors">
+                  <div className={`w-1 h-3 ${isExpanded ? 'bg-neon shadow-[0_0_5px_#00f0ff]' : 'bg-steel'} transition-all duration-200`} />
+                  <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${isExpanded ? 'text-chrome' : 'text-tungsten'}`}>
                     {CLUSTERS[clusterKey].label}
                   </span>
                 </div>
@@ -77,12 +78,12 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
                       onClick={() => onSelectNode(node.id)}
                       className={`w-full p-2 text-left border-l-2 transition-all duration-75 group flex flex-col gap-0.5 relative overflow-hidden ${
                         activeNodeId === node.id 
-                        ? 'border-neon bg-neon/5' 
+                        ? 'border-neon bg-neon/10' 
                         : 'border-transparent hover:bg-steel/10'
                       }`}
                     >
                       {activeNodeId === node.id && (
-                        <div className="absolute top-0 right-0 w-8 h-8 opacity-10">
+                        <div className="absolute top-0 right-0 w-8 h-8 opacity-10 animate-pulse">
                           <ICONS.Terminal />
                         </div>
                       )}
@@ -92,13 +93,13 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
                         </span>
                         <div className={`w-1.5 h-1.5 rounded-none ${getStatusColor(node.status)}`} />
                       </div>
-                      <span className={`text-[10px] font-bold tracking-tight uppercase ${activeNodeId === node.id ? 'text-chrome' : 'text-tungsten/80'} truncate`}>
+                      <span className={`text-[10px] font-bold tracking-tight uppercase ${activeNodeId === node.id ? 'text-chrome' : 'text-tungsten/80'} truncate group-hover:text-chrome transition-colors`}>
                         {node.name}
                       </span>
                       {activeNodeId === node.id && (
                         <div className="mt-1.5 flex items-center gap-2">
                            <div className="flex-1 bg-steel/20 h-0.5">
-                              <div className="bg-neon h-full animate-pulse" style={{ width: `${node.load}%` }} />
+                              <div className="bg-neon h-full transition-all duration-500" style={{ width: `${node.load}%` }} />
                            </div>
                            <span className="text-[7px] text-neon/60 font-mono">LD:{node.load}%</span>
                         </div>
@@ -118,17 +119,23 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
         </div>
         <div className="space-y-2">
           <div className="flex justify-between items-end">
-            <span className="text-[8px] text-tungsten font-bold uppercase tracking-widest">Compute_Grid_Status</span>
-            <span className="text-[9px] text-active font-mono font-bold tracking-tighter">NOMINAL</span>
+            <span className="text-[8px] text-tungsten font-bold uppercase tracking-widest">Global_Grid_Status</span>
+            <span className="text-[9px] text-active font-mono font-bold tracking-tighter">OPTIMIZED</span>
           </div>
-          <div className="flex gap-0.5 h-1.5">
-            {Array.from({length: 24}).map((_, i) => (
-              <div key={i} className={`flex-1 ${i < 22 ? 'bg-active/80' : i < 23 ? 'bg-warning animate-pulse' : 'bg-steel/30'}`} />
+          <div className="grid grid-cols-12 gap-0.5 h-3">
+            {Array.from({length: 48}).map((_, i) => (
+              <div 
+                key={i} 
+                className={`transition-all duration-500 ${
+                  Math.random() > 0.9 ? 'bg-error/40 animate-pulse' : 
+                  Math.random() > 0.1 ? 'bg-active/40' : 'bg-steel/30'
+                }`} 
+              />
             ))}
           </div>
           <div className="flex justify-between text-[7px] font-mono text-tungsten/60 uppercase">
-             <span>SECURE_BRIDGE: OK</span>
-             <span>P_LATENCY: 12ms</span>
+             <span>SECURE_BRIDGE: STABLE</span>
+             <span>P_LATENCY: {Math.floor(Math.random() * 5 + 8)}ms</span>
           </div>
         </div>
       </div>

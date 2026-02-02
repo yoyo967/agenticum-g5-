@@ -78,3 +78,19 @@ export interface FileData {
   data: string;
   mimeType: string;
 }
+
+export interface StrategicObjective {
+  id: string;
+  label: string;
+  progress: number;
+  status: 'ACTIVE' | 'PENDING' | 'HALTED';
+}
+
+export interface SessionAsset {
+  id: string;
+  type: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOC';
+  url: string;
+  timestamp: string;
+  nodeId: string;
+  label: string;
+}
