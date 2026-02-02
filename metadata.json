@@ -1,0 +1,8 @@
+{
+  "name": "AGENTICUM G5 - Obsidian & Chrome",
+  "description": "An authoritative, industrial-grade agentic command center designed for precision reasoning and node-based task execution.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
