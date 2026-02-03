@@ -1,204 +1,123 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ICONS } from '../constants';
+import { FileData } from '../types';
 
 interface CommandLineProps {
-  onExecute: (cmd: string, files?: { data: string, mimeType: string }[]) => void;
-  onToggleLive: () => void;
+  onExecute: (cmd: string, files?: FileData[]) => void;
+  onToggleLive: (useVision: boolean) => void;
+  onOpenDiagnostics: () => void;
   isLive: boolean;
+  isVision: boolean;
   disabled: boolean;
 }
 
-const PRESETS = [
-  { id: 'pres-01', label: 'Market Entry Sim', cmd: 'Execute a forensic market entry simulation for a high-tech obsidian hardware brand.' },
-  { id: 'pres-02', label: 'Brand Anthem', cmd: 'Compose an authoritative brand anthem sequence. Generate acoustic signature and temporal visual storyboard.' },
-  { id: 'pres-03', label: 'Competitor Audit', cmd: 'Perform a GATES-verified strategic audit of top global competitors in the agentic AI sector.' },
-  { id: 'pres-04', label: 'IP Defense Plan', cmd: 'Formulate a sovereign IP defense and deep-fake mitigation strategy for a global marketing infrastructure.' },
-];
-
-const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, isLive, disabled }) => {
+const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, onOpenDiagnostics, isLive, isVision, disabled }) => {
   const [input, setInput] = useState('');
-  const [files, setFiles] = useState<{ data: string, mimeType: string, name?: string }[]>([]);
+  const [isHovered, setIsHovered] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<FileData[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (isLive && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const draw = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#00ff88';
-        const barWidth = 2;
-        const barSpacing = 1;
-        const barCount = Math.floor(canvas.width / (barWidth + barSpacing));
-        
-        for (let i = 0; i < barCount; i++) {
-          const height = Math.random() * canvas.height * 0.8 + 2;
-          const x = i * (barWidth + barSpacing);
-          const y = canvas.height - height;
-          ctx.fillRect(x, y, barWidth, height);
-        }
-        animationRef.current = requestAnimationFrame(draw);
-      };
-      draw();
-    } else {
-      cancelAnimationFrame(animationRef.current);
-    }
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [isLive]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !disabled) {
-      onExecute(input.trim(), files.length > 0 ? files : undefined);
+      onExecute(input.trim(), selectedFiles.length > 0 ? selectedFiles : undefined);
       setInput('');
-      setFiles([]);
+      setSelectedFiles([]);
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles) return;
-
-    const newFiles: { data: string, mimeType: string, name: string }[] = [];
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      const base64 = await new Promise<string>((resolve) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setSelectedFiles(prev => [...prev, {
+              data: event.target!.result!.toString().split(',')[1],
+              mimeType: file.type,
+              name: file.name
+            }]);
+          }
+        };
         reader.readAsDataURL(file);
       });
-      newFiles.push({ data: base64, mimeType: file.type, name: file.name });
     }
-    setFiles(prev => [...prev, ...newFiles]);
   };
 
   return (
-    <div className="p-4 border-t border-steel bg-void/80 backdrop-blur-xl relative z-20">
-      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-steel/50 to-transparent"></div>
-      
-      <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide">
-        <span className="text-[7px] text-tungsten font-black uppercase tracking-widest self-center mr-2">Presets:</span>
-        {PRESETS.map(preset => (
-          <button
-            key={preset.id}
-            type="button"
-            disabled={disabled || isLive}
-            onClick={() => onExecute(preset.cmd)}
-            className="shrink-0 text-[8px] font-mono border border-steel/30 px-3 py-1 text-tungsten hover:text-neon hover:border-neon/40 hover:bg-neon/5 transition-all uppercase tracking-tighter"
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
-
-      {files.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {files.map((f, i) => (
-            <div key={i} className="group text-[8px] text-neon font-mono px-2 py-1 bg-neon/5 border border-neon/20 flex items-center gap-3 hover:border-neon/50 transition-all">
-              <div className="flex flex-col">
-                <span className="opacity-60 uppercase font-black text-[7px] tracking-tighter">Buffer_{i.toString().padStart(2, '0')}</span>
-                <span className="truncate max-w-[120px]">{f.name || f.mimeType.split('/')[1].toUpperCase()}</span>
+    <div 
+      className={`p-6 bg-obsidian border-t border-steel font-mono relative z-30 transition-all duration-700 shrink-0 ${isHovered ? 'shadow-[0_-30px_80px_rgba(0,240,255,0.15)]' : 'shadow-[0_-15px_40px_rgba(0,0,0,0.8)]'}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="max-w-7xl mx-auto flex flex-col gap-4">
+        {selectedFiles.length > 0 && (
+          <div className="flex gap-4 mb-2 animate-in slide-in-from-bottom-4 duration-500">
+            {selectedFiles.map((f, i) => (
+              <div key={i} className="px-4 py-2 bg-neon/10 border border-neon/40 text-[10px] text-neon font-black flex items-center gap-3">
+                 <span className="uppercase tracking-widest">{f.name}</span>
+                 <button onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-white transition-colors">×</button>
               </div>
-              <button 
-                onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} 
-                className="text-tungsten hover:text-error transition-colors p-0.5"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit} className="flex gap-2 items-stretch">
-        <div className="relative flex-1 group">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
-            <button 
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="text-tungsten hover:text-neon transition-all duration-150 transform hover:scale-110 active:scale-90"
-              title="Attach Protocol Assets"
+        <form onSubmit={handleSubmit} className="flex gap-4 items-stretch h-14">
+          <button 
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="px-6 border border-steel text-tungsten hover:border-chrome hover:text-chrome transition-all flex items-center justify-center bg-steel/5"
+            title="Upload Asset"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" />
+          </button>
+
+          <div className="relative flex-1 bg-void border border-steel hover:border-neon/40 transition-all group shadow-inner flex items-center">
+            <div className="pl-6 text-neon opacity-40 group-hover:opacity-100 transition-opacity">
+               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
               disabled={disabled || isLive}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </button>
-            <div className="w-px h-4 bg-steel/50 hidden md:block" />
+              placeholder={isLive ? "SYTEM_LISTENING..." : "TRANSMIT_SOVEREIGN_COMMAND..."}
+              className="w-full h-full bg-transparent px-4 text-[14px] text-chrome focus:outline-none tracking-widest font-bold placeholder:opacity-20 uppercase"
+            />
           </div>
           
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            onChange={handleFileChange} 
-            multiple 
-          />
-          
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={disabled || isLive}
-            placeholder={isLive ? "LIVE_BRIDGE_ACTIVE: SPEAK NOW..." : disabled ? "NODE_COMPUTING: BUFFERING COMMAND..." : ">> DEPLOY_SEQUENCE_PARAMETER"}
-            className="w-full bg-obsidian border border-steel group-hover:border-steel/80 focus:border-neon focus:ring-1 focus:ring-neon/20 focus:outline-none py-3.5 pl-14 pr-4 text-chrome font-mono text-xs transition-all placeholder:text-tungsten tracking-wider uppercase"
-          />
-
-          {isLive && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-6 flex items-center pointer-events-none">
-              <canvas ref={canvasRef} width="128" height="24" className="w-full h-full opacity-60" />
-            </div>
-          )}
-        </div>
-        
-        <div className="flex gap-2">
+          <div className="flex gap-3">
             <button
               type="button"
-              onClick={onToggleLive}
-              className={`px-4 border transition-all flex items-center gap-2 group relative ${
-                isLive 
-                ? 'border-active bg-active/10 text-active shadow-[0_0_25px_rgba(0,255,136,0.3)]' 
-                : 'border-steel bg-void text-tungsten hover:text-active hover:border-active/50'
-              }`}
-              title={isLive ? "Terminate Voice Uplink" : "Activate High-Fidelity Voice Interface"}
+              onClick={() => onToggleLive(false)}
+              className={`px-6 border flex items-center gap-3 transition-all duration-300 ${isLive && !isVision ? 'border-thinking text-thinking bg-thinking/10 shadow-[0_0_20px_rgba(170,0,255,0.2)]' : 'border-steel text-tungsten hover:border-thinking hover:text-thinking bg-steel/5'}`}
             >
-               {isLive && (
-                 <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-                   <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-active to-transparent animate-[loading_1.5s_infinite]"></div>
-                 </div>
-               )}
-               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={isLive ? 'animate-pulse scale-110' : ''}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-               <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">{isLive ? 'TERMINATE' : 'VOICE'}</span>
+              <div className={`w-2 h-2 rounded-full ${isLive && !isVision ? 'bg-thinking animate-pulse' : 'bg-steel/40'}`} />
+              <span className="text-[11px] font-black tracking-widest uppercase">AUDIO</span>
             </button>
 
-            <button 
-                type="submit" 
-                disabled={disabled || !input.trim() || isLive}
-                className={`text-[10px] font-black uppercase tracking-[0.2em] px-8 border transition-all relative overflow-hidden group/btn ${
-                    disabled || !input.trim() || isLive
-                    ? 'border-steel text-tungsten cursor-not-allowed bg-void' 
-                    : 'border-neon text-neon hover:bg-neon hover:text-void cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.2)]'
-                }`}
+            <button
+              type="button"
+              onClick={() => onToggleLive(true)}
+              className={`px-6 border flex items-center gap-3 transition-all duration-300 ${isLive && isVision ? 'border-error text-error bg-error/10 shadow-[0_0_20px_rgba(255,0,85,0.2)]' : 'border-steel text-tungsten hover:border-error hover:text-error bg-steel/5'}`}
             >
-                <div className="relative z-10 flex items-center gap-2">
-                  <span className="hidden sm:inline">Execute</span>
-                  <ICONS.ChevronRight />
-                </div>
+              <div className={`w-2 h-2 rounded-full ${isLive && isVision ? 'bg-error animate-pulse' : 'bg-steel/40'}`} />
+              <span className="text-[11px] font-black tracking-widest uppercase">VISION</span>
             </button>
-        </div>
-      </form>
-      <div className="mt-2 flex justify-between px-1">
-        <div className="flex gap-4">
-           <span className="text-[7px] text-tungsten/50 uppercase font-mono">Input_Buffer: {input.length} chrs</span>
-           <span className="text-[7px] text-tungsten/50 uppercase font-mono">Encryption: AES-GCM</span>
-        </div>
-        <div className="flex gap-4">
-           <span className="text-[7px] text-tungsten/50 uppercase font-mono underline decoration-neon/20 hover:text-neon cursor-pointer">Protocol_Docs</span>
-           <span className="text-[7px] text-tungsten/50 uppercase font-mono underline decoration-active/20 hover:text-active cursor-pointer">Diagnostics</span>
-        </div>
+          </div>
+
+          <button 
+            type="submit"
+            disabled={disabled || !input.trim() || isLive}
+            className="px-14 bg-neon text-void text-[12px] font-black uppercase tracking-[0.5em] hover:bg-white hover:shadow-[0_0_50px_#00f0ff] transition-all disabled:opacity-10 active:scale-95 relative overflow-hidden group shadow-2xl"
+          >
+            <span className="relative z-10">FORGE</span>
+            <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+          </button>
+        </form>
       </div>
     </div>
   );

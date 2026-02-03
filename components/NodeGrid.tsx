@@ -19,16 +19,6 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
     setExpandedClusters(next);
   };
 
-  const getStatusColor = (status: NodeStatus) => {
-    switch (status) {
-      case NodeStatus.ONLINE: return 'bg-active';
-      case NodeStatus.PROCESSING: return 'bg-warning animate-pulse';
-      case NodeStatus.WARNING: return 'bg-error shadow-[0_0_8px_#ff0055]';
-      case NodeStatus.OFFLINE: return 'bg-tungsten opacity-30';
-      default: return 'bg-tungsten';
-    }
-  };
-
   const groupedNodes = nodes.reduce((acc, node) => {
     if (!acc[node.cluster]) acc[node.cluster] = [];
     acc[node.cluster].push(node);
@@ -36,107 +26,98 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
   }, {} as Record<ClusterType, AgentNode[]>);
 
   return (
-    <div className="flex flex-col h-full bg-void border-r border-steel w-72 shrink-0 overflow-hidden select-none">
-      <div className="p-4 border-b border-steel flex items-center justify-between bg-obsidian/50 backdrop-blur-sm relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1 h-full bg-neon/50"></div>
-        <h2 className="text-chrome font-bold text-[10px] tracking-[0.3em] uppercase flex items-center gap-3">
-          <ICONS.Cpu /> NODE_FABRIC_OS
+    <div className="flex flex-col h-full bg-void border-r border-steel w-64 shrink-0 overflow-hidden font-mono select-none">
+      <div className="p-5 border-b border-steel bg-obsidian/80 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-neon shadow-[0_0_10px_#00f0ff]" />
+        <h2 className="text-chrome font-black text-[11px] tracking-[0.4em] uppercase flex items-center gap-3">
+          <div className="animate-pulse"><ICONS.Cpu /></div> NODE_MATRIX_FABRIC
         </h2>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] text-neon font-mono font-bold leading-none tracking-tighter">52/52</span>
-          <span className="text-[7px] text-tungsten uppercase font-bold tracking-widest">Active_Units</span>
+        <div className="mt-2 flex justify-between text-[8px] font-black text-tungsten tracking-[0.2em] uppercase">
+           <span>Uplink_SDR_v5</span>
+           <span className="text-active animate-pulse">Synchronized</span>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto scrollbar-hide p-1 space-y-3 pt-2">
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-2 space-y-2 bg-void/50">
         {(Object.keys(CLUSTERS) as ClusterType[]).map((clusterKey) => {
           const clusterNodes = groupedNodes[clusterKey] || [];
+          if (clusterNodes.length === 0) return null;
           const isExpanded = expandedClusters.has(clusterKey);
           
           return (
-            <div key={clusterKey} className="space-y-0.5">
+            <div key={clusterKey} className="bg-obsidian/40 border border-steel/20 transition-all duration-300">
               <button 
                 onClick={() => toggleCluster(clusterKey)}
-                className="w-full flex items-center justify-between px-2 py-1.5 bg-steel/10 border-b border-steel/20 group hover:bg-steel/20 transition-all duration-75"
+                className={`w-full flex items-center justify-between px-4 py-3 transition-all ${isExpanded ? 'bg-steel/10 border-b border-steel/10' : 'hover:bg-steel/5'}`}
               >
-                <div className="flex items-center gap-2">
-                  <div className={`w-1 h-3 ${isExpanded ? 'bg-neon shadow-[0_0_5px_#00f0ff]' : 'bg-steel'} transition-all duration-200`} />
-                  <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${isExpanded ? 'text-chrome' : 'text-tungsten'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-1 h-3 ${isExpanded ? 'bg-neon shadow-[0_0_5px_#00f0ff]' : 'bg-steel/40'}`} />
+                  <span className={`text-[9px] font-black uppercase tracking-[0.3em] ${isExpanded ? 'text-chrome' : 'text-tungsten'}`}>
                     {CLUSTERS[clusterKey].label}
                   </span>
                 </div>
-                <span className={`text-[8px] text-tungsten transition-transform duration-200 ${isExpanded ? 'rotate-90 text-neon' : ''}`}>
+                <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-90 text-neon' : 'text-tungsten opacity-40'}`}>
                   <ICONS.ChevronRight />
-                </span>
+                </div>
               </button>
               
               {isExpanded && (
-                <div className="grid grid-cols-1 gap-[1px] bg-steel/5">
-                  {clusterNodes.map((node) => (
-                    <button
-                      key={node.id}
-                      onClick={() => onSelectNode(node.id)}
-                      className={`w-full p-2 text-left border-l-2 transition-all duration-75 group flex flex-col gap-0.5 relative overflow-hidden ${
-                        activeNodeId === node.id 
-                        ? 'border-neon bg-neon/10' 
-                        : 'border-transparent hover:bg-steel/10'
-                      }`}
-                    >
-                      {activeNodeId === node.id && (
-                        <div className="absolute top-0 right-0 w-8 h-8 opacity-10 animate-pulse">
-                          <ICONS.Terminal />
+                <div className="p-1.5 space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                  {clusterNodes.map((node) => {
+                    const isActive = activeNodeId === node.id;
+                    const isProcessing = node.status === NodeStatus.PROCESSING;
+                    return (
+                      <button
+                        key={node.id}
+                        onClick={() => onSelectNode(node.id)}
+                        className={`w-full p-3 text-left border transition-all relative group overflow-hidden ${
+                          isActive 
+                          ? 'border-neon bg-neon/5 shadow-[inset_0_0_20px_rgba(0,240,255,0.05)]' 
+                          : 'border-steel/20 bg-void/40 hover:border-steel/60 hover:bg-steel/5'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <span className={`text-[8px] font-black tracking-widest uppercase ${isActive ? 'text-neon' : 'text-tungsten'}`}>
+                            {node.id}
+                          </span>
+                          <div className={`w-1.5 h-1.5 ${isProcessing ? 'bg-warning animate-ping' : 'bg-active'} shadow-[0_0_6px_currentColor]`} />
                         </div>
-                      )}
-                      <div className="flex items-center justify-between w-full">
-                        <span className={`text-[8px] font-mono font-bold tracking-tighter ${activeNodeId === node.id ? 'text-neon' : 'text-tungsten'}`}>
-                          {node.id}
+                        
+                        <span className={`text-[10px] font-black uppercase truncate block transition-colors ${isActive ? 'text-chrome' : 'text-tungsten group-hover:text-chrome'}`}>
+                          {node.name}
                         </span>
-                        <div className={`w-1.5 h-1.5 rounded-none ${getStatusColor(node.status)}`} />
-                      </div>
-                      <span className={`text-[10px] font-bold tracking-tight uppercase ${activeNodeId === node.id ? 'text-chrome' : 'text-tungsten/80'} truncate group-hover:text-chrome transition-colors`}>
-                        {node.name}
-                      </span>
-                      {activeNodeId === node.id && (
-                        <div className="mt-1.5 flex items-center gap-2">
-                           <div className="flex-1 bg-steel/20 h-0.5">
-                              <div className="bg-neon h-full transition-all duration-500" style={{ width: `${node.load}%` }} />
-                           </div>
-                           <span className="text-[7px] text-neon/60 font-mono">LD:{node.load}%</span>
+
+                        <div className="mt-2.5 h-[1.5px] bg-void w-full relative overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-1000 ${isActive ? 'bg-neon shadow-[0_0_8px_#00f0ff]' : 'bg-steel'}`} 
+                            style={{ width: `${node.load}%` }} 
+                          />
                         </div>
-                      )}
-                    </button>
-                  ))}
+                        
+                        {isActive && (
+                          <div className="absolute top-0 right-0 p-1 opacity-20">
+                             <div className="w-1.5 h-1.5 bg-neon rotate-45" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           );
         })}
       </div>
-      
-      <div className="p-4 border-t border-steel bg-obsidian/80 backdrop-blur-md relative">
-        <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
-          <ICONS.Shield />
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between items-end">
-            <span className="text-[8px] text-tungsten font-bold uppercase tracking-widest">Global_Grid_Status</span>
-            <span className="text-[9px] text-active font-mono font-bold tracking-tighter">OPTIMIZED</span>
-          </div>
-          <div className="grid grid-cols-12 gap-0.5 h-3">
-            {Array.from({length: 48}).map((_, i) => (
-              <div 
-                key={i} 
-                className={`transition-all duration-500 ${
-                  Math.random() > 0.9 ? 'bg-error/40 animate-pulse' : 
-                  Math.random() > 0.1 ? 'bg-active/40' : 'bg-steel/30'
-                }`} 
-              />
-            ))}
-          </div>
-          <div className="flex justify-between text-[7px] font-mono text-tungsten/60 uppercase">
-             <span>SECURE_BRIDGE: STABLE</span>
-             <span>P_LATENCY: {Math.floor(Math.random() * 5 + 8)}ms</span>
-          </div>
+
+      <div className="p-4 border-t border-steel bg-obsidian/60">
+        <div className="flex flex-col gap-2">
+           <div className="flex justify-between items-center">
+             <span className="text-[7px] text-tungsten font-black uppercase tracking-widest">Global_Stability</span>
+             <span className="text-[7px] text-active font-black tracking-widest uppercase">99.98%</span>
+           </div>
+           <div className="h-[2px] bg-void w-full">
+             <div className="h-full bg-active w-[99.98%] shadow-[0_0_5px_#00ff88]" />
+           </div>
         </div>
       </div>
     </div>

@@ -17,14 +17,15 @@ export type ClusterType =
   | 'SPECIAL_OPS';
 
 export interface Artifact {
-  type: 'text' | 'image' | 'video' | 'audio' | 'json';
+  type: 'doc' | 'image' | 'video' | 'audio' | 'report';
   content: string;
+  label?: string;
   metadata: Record<string, any>;
 }
 
 export interface GroundingChunk {
-  web?: { uri: string; title: string };
-  maps?: { uri: string; title: string };
+  web?: { uri?: string; title?: string };
+  maps?: { uri?: string; title?: string };
 }
 
 export interface NodeOutput {
@@ -35,6 +36,9 @@ export interface NodeOutput {
   grounding?: GroundingChunk[];
   reasoning?: string;
   executionTime: number;
+  plan?: StrategicObjective[]; 
+  thoughtSignature?: string;
+  tokensUsed?: number;
 }
 
 export interface AgentNode {
@@ -49,9 +53,9 @@ export interface AgentNode {
 export interface TraceEntry {
   id: string;
   timestamp: string;
-  sender: 'USER' | 'AGENT' | 'SYSTEM' | 'THOUGHT';
+  sender: 'USER' | 'AGENT' | 'SYSTEM' | 'THOUGHT' | 'CONSENSUS' | 'MISSION_CONTROL';
   content: string;
-  type: 'text' | 'code' | 'thinking' | 'image' | 'video' | 'audio';
+  type: 'text' | 'code' | 'thinking' | 'image' | 'video' | 'audio' | 'plan';
   metadata?: {
     nodeId?: string;
     tokensUsed?: number;
@@ -61,6 +65,10 @@ export interface TraceEntry {
     audioUrl?: string;
     artifacts?: Artifact[];
     grounding?: GroundingChunk[];
+    plan?: StrategicObjective[];
+    validatingNodes?: string[];
+    thoughtSignature?: string;
+    targetNode?: string;
   };
 }
 
@@ -77,20 +85,32 @@ export interface DeploymentConfig {
 export interface FileData {
   data: string;
   mimeType: string;
+  name: string;
 }
 
 export interface StrategicObjective {
   id: string;
   label: string;
   progress: number;
-  status: 'ACTIVE' | 'PENDING' | 'HALTED';
+  status: 'ACTIVE' | 'PENDING' | 'HALTED' | 'COMPLETED';
+  assignedNode: string;
+  description: string;
 }
 
 export interface SessionAsset {
   id: string;
-  type: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOC';
+  type: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOC' | 'REPORT';
   url: string;
   timestamp: string;
   nodeId: string;
   label: string;
+  mimeType?: string;
+  content?: string;
+  grounding?: GroundingChunk[];
+}
+
+export interface BootState {
+  isBooting: boolean;
+  progress: number;
+  message: string;
 }

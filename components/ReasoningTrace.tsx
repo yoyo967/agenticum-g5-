@@ -1,6 +1,6 @@
 
-import React, { useEffect, useRef } from 'react';
-import { TraceEntry, GroundingChunk } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { TraceEntry, StrategicObjective, GroundingChunk } from '../types';
 
 interface ReasoningTraceProps {
   entries: TraceEntry[];
@@ -9,179 +9,240 @@ interface ReasoningTraceProps {
 
 const ReasoningTrace: React.FC<ReasoningTraceProps> = ({ entries, isThinking }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showRawLog, setShowRawLog] = useState(false);
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [entries, isThinking]);
 
-  const renderGrounding = (grounding: GroundingChunk[]) => {
+  const renderThoughtSignature = (signature?: string) => {
+    if (!signature) return null;
     return (
-      <div className="bg-void/60 border border-active/20 p-4 space-y-4 shadow-2xl mt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-active shadow-[0_0_8px_#00ff88]" />
-            <span className="text-[10px] text-active font-black uppercase tracking-[0.3em]">Verified_Strategic_Truth</span>
-          </div>
-          <span className="text-[8px] text-tungsten font-mono">ENCRYPTION: AES-256-GCM</span>
+      <div className="mt-8 p-5 border border-steel/40 bg-void/80 flex items-center justify-between group relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-neon/60" />
+        <div className="flex gap-2">
+          {signature.split('').slice(0, 16).map((char, i) => (
+            <div key={i} className="w-3 h-6 bg-neon/10 flex items-center justify-center border border-white/5">
+              <div 
+                className="w-[1.5px] h-full bg-neon/50 animate-[pulse_1.5s_infinite]" 
+                style={{ animationDelay: `${i * 0.1}s` }} 
+              />
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {grounding.map((chunk, idx) => {
-            const isMap = !!chunk.maps;
-            const link = chunk.web || chunk.maps;
-            if (!link) return null;
-            return (
-              <a 
-                key={idx} 
-                href={link.uri} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className={`group/link text-[10px] border px-4 py-3 bg-obsidian/80 transition-all flex items-center gap-4 overflow-hidden shadow-lg ${
-                  isMap ? 'border-warning/30 hover:border-warning/60 text-warning/80 hover:text-warning' : 'border-steel/30 hover:border-neon/50 text-chrome/80 hover:text-neon'
-                }`}
-              >
-                <div className={`shrink-0 transition-colors transform group-hover/link:scale-110 ${isMap ? 'text-warning/50' : 'text-neon/50'}`}>
-                  {isMap ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  )}
-                </div>
-                <div className="flex flex-col min-w-0">
-                   <span className="text-[8px] opacity-40 uppercase font-black tracking-tighter mb-0.5">{isMap ? 'LOC_STAMP' : 'SRC_STAMP'}_0{idx}</span>
-                   <span className="truncate font-bold tracking-tight uppercase">{link.title || 'UPLINK_SOURCE_DATA'}</span>
-                </div>
-              </a>
-            );
-          })}
+        <div className="flex gap-8 items-center">
+          <div className="flex flex-col items-end">
+             <span className="text-[8px] text-tungsten font-black tracking-[0.8em] uppercase opacity-40 group-hover:opacity-100 transition-opacity">
+               DETERMINISTIC_SIGNATURE
+             </span>
+             <span className="text-[10px] text-neon font-black font-mono tracking-widest mt-1">
+               {signature.slice(0, 20).toUpperCase()}
+             </span>
+          </div>
+          <div className="w-2.5 h-2.5 bg-active shadow-[0_0_15px_#00ff88]" />
         </div>
       </div>
     );
   };
 
-  return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 space-y-12 font-mono scrollbar-hide relative">
-      <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none select-none text-right">
-        <div className="text-[8px] uppercase tracking-[0.8em] font-black text-neon mb-2">Cognitive_Telemetry</div>
-        <div className="flex flex-col gap-1 items-end">
-          {Array.from({length: 4}).map((_, i) => (
-            <div key={i} className="flex gap-1">
-               {Array.from({length: 12}).map((_, j) => (
-                 <div key={j} className={`w-1 h-1 ${Math.random() > 0.6 ? 'bg-neon' : 'bg-steel/30'}`} />
-               ))}
-            </div>
-          ))}
+  const renderTelemetry = (entry: TraceEntry) => {
+    if (!entry.metadata?.tokensUsed && !entry.metadata?.latency) return null;
+    
+    return (
+      <div className="flex flex-wrap gap-8 mt-6 text-[9px] font-black text-tungsten tracking-[0.4em] uppercase opacity-40 hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 bg-thinking" />
+          <span>TOKENS: {entry.metadata.tokensUsed || 0}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 bg-warning" />
+          <span>LATENCY: {entry.metadata.latency || 0}MS</span>
+        </div>
+        <div className={`px-3 py-1 border border-steel/50 bg-void`}>
+          SOVEREIGN_EXECUTION_STABLE
         </div>
       </div>
+    );
+  };
 
-      {entries.length === 0 && !isThinking && (
-        <div className="h-full flex flex-col items-center justify-center opacity-10 pointer-events-none select-none grayscale">
-          <div className="text-9xl font-black tracking-tighter mb-4 opacity-10">G5</div>
-          <div className="text-[10px] uppercase tracking-[1em] font-bold mb-8">Ready_For_Deployment</div>
-          <div className="grid grid-cols-2 gap-x-16 gap-y-3 text-[9px] uppercase tracking-widest text-tungsten">
-            <div className="text-right">SECURITY</div><div className="text-left font-bold text-active">MAX_LEVEL</div>
-            <div className="text-right">CONNECTION</div><div className="text-left font-bold text-active">STABLE_32GBPS</div>
-            <div className="text-right">NODES</div><div className="text-left font-bold text-active">PERFECT_TWIN_READY</div>
-          </div>
+  const renderPlan = (plan: StrategicObjective[]) => (
+    <div className="bg-obsidian border border-neon/30 p-12 mt-12 space-y-8 relative overflow-hidden group shadow-2xl">
+      <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none select-none">
+         <span className="text-[140px] font-black text-neon leading-none tracking-tighter">PLAN_X</span>
+      </div>
+      <div className="flex items-center gap-6 mb-10 border-b border-steel pb-8">
+        <div className="w-2 h-8 bg-neon shadow-[0_0_20px_#00f0ff]" />
+        <div className="flex flex-col">
+          <h3 className="text-[14px] font-black text-neon uppercase tracking-[1em] leading-none">Objective_Mesh_Fabric</h3>
+          <span className="text-[8px] text-tungsten font-black uppercase tracking-[0.4em] mt-3 opacity-60">Sequence_Analysis_Stabilized</span>
         </div>
-      )}
-
-      {entries.map((entry) => (
-        <div key={entry.id} className="group animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
-          <div className="flex items-center gap-3 border-b border-steel/10 pb-2 mb-4">
-            <div className={`w-1 h-4 ${
-              entry.sender === 'USER' ? 'bg-chrome' : 
-              entry.sender === 'AGENT' ? 'bg-neon shadow-[0_0_10px_#00f0ff]' : 
-              entry.sender === 'THOUGHT' ? 'bg-thinking' :
-              'bg-tungsten'
-            }`} />
-            <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${
-              entry.sender === 'USER' ? 'text-chrome' : 
-              entry.sender === 'AGENT' ? 'text-neon' : 
-              entry.sender === 'THOUGHT' ? 'text-thinking' :
-              'text-tungsten'
-            }`}>
-              {entry.sender}
-            </span>
-            <span className="text-[8px] text-tungsten/40 font-bold uppercase tracking-widest">{entry.timestamp}</span>
-            <div className="flex-1" />
-            {entry.metadata?.nodeId && (
-              <div className="flex items-center gap-2">
-                 <span className="text-[8px] text-tungsten/50 uppercase tracking-tighter">NODE_ID:</span>
-                 <span className="text-[9px] text-neon/90 font-bold tracking-widest border border-neon/30 px-2 py-0.5 bg-neon/5 shadow-[inset_0_0_5px_rgba(0,240,255,0.1)]">{entry.metadata.nodeId}</span>
-              </div>
-            )}
-          </div>
-          
-          <div className={`text-sm leading-relaxed whitespace-pre-wrap pl-5 border-l-2 ${
-            entry.sender === 'USER' ? 'text-chrome/70 italic border-chrome/10' : 
-            entry.sender === 'THOUGHT' ? 'text-thinking/90 italic border-thinking/30' :
-            'text-chrome border-neon/20 shadow-[inset_10px_0_15px_-10px_rgba(0,240,255,0.05)]'
+      </div>
+      <div className="space-y-5">
+        {plan.map((obj, i) => (
+          <div key={i} className={`flex items-center gap-8 p-6 border transition-all duration-700 ${
+            obj.status === 'COMPLETED' ? 'border-active/40 bg-active/5' : 
+            obj.status === 'ACTIVE' ? 'border-neon/40 bg-neon/10 animate-pulse' : 
+            'border-steel/20 opacity-30 bg-void/40'
           }`}>
-            <span className="opacity-95">{entry.content}</span>
-            
-            {entry.sender === 'THOUGHT' && (
-              <div className="mt-4 flex flex-col gap-4">
-                <div className="grid grid-cols-4 gap-2">
-                  {['Grounding', 'Analysis', 'Tracking', 'Sovereign'].map((step, i) => (
-                      <div key={step} className="flex flex-col gap-1">
-                        <div className="h-1 bg-steel/30 relative overflow-hidden">
-                            <div className={`absolute top-0 left-0 h-full bg-thinking w-full transition-all duration-1000 animate-pulse`} />
-                        </div>
-                        <span className="text-[7px] text-tungsten uppercase font-black tracking-tighter">{step}</span>
-                      </div>
-                  ))}
+            <div className="flex flex-col items-center gap-1.5 min-w-[70px] border-r border-steel/30 pr-8">
+              <span className="text-[10px] text-tungsten font-black tracking-widest uppercase opacity-40">NODE</span>
+              <span className="text-3xl font-black text-chrome leading-none">{obj.assignedNode.split('-')[1]}</span>
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between items-end mb-5">
+                <div className="flex flex-col gap-2">
+                   <span className="text-[16px] font-black text-chrome uppercase tracking-widest">{obj.label}</span>
+                   <span className="text-[9px] text-tungsten font-bold uppercase tracking-[0.5em] opacity-80">Assignment: {obj.assignedNode} // Alpha_Link</span>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${obj.status === 'COMPLETED' ? 'text-active shadow-[0_0_15px_#00ff88]' : 'text-neon animate-pulse'}`}>{obj.status}</span>
+                  <div className="flex gap-1.5">
+                    {Array.from({length: 4}).map((_, j) => (
+                      <div key={j} className={`w-1.5 h-1.5 ${obj.status === 'COMPLETED' ? 'bg-active' : (obj.status === 'ACTIVE' && j < (obj.progress/25) ? 'bg-neon animate-pulse' : 'bg-steel/30')}`} />
+                    ))}
+                  </div>
                 </div>
               </div>
-            )}
-
-            <div className="mt-6 space-y-6">
-              {entry.metadata?.grounding && entry.metadata.grounding.length > 0 && renderGrounding(entry.metadata.grounding)}
-
-              {entry.metadata?.imageUrl && (
-                <div className="group/img relative border-2 border-steel/40 bg-void p-2 inline-block max-w-full hover:border-neon/60 transition-all duration-300 shadow-2xl">
-                  <div className="absolute top-6 right-6 z-10 opacity-0 group-hover/img:opacity-100 transition-opacity">
-                    <span className="bg-neon text-void px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,240,255,0.4)]">ASSET_NOMINAL</span>
-                  </div>
-                  <img src={entry.metadata.imageUrl} alt="Synthetic_Output" className="max-w-full h-auto border border-steel/20" />
-                </div>
-              )}
-
-              {entry.metadata?.videoUrl && (
-                <div className="border-2 border-steel/40 bg-void p-2 w-full max-w-4xl hover:border-neon/60 transition-all duration-300 shadow-2xl">
-                  <div className="mb-3 flex items-center gap-3 px-3">
-                    <div className="w-2 h-2 bg-error animate-pulse" />
-                    <span className="text-[10px] text-chrome font-bold uppercase tracking-widest">Temporal_Cinematic_Sequence</span>
-                  </div>
-                  <video controls src={entry.metadata.videoUrl} className="w-full h-auto bg-black border border-steel/10" />
-                </div>
-              )}
+              <div className="h-[3px] bg-void w-full relative overflow-hidden shadow-inner border border-white/5">
+                 <div className={`h-full transition-all duration-1000 ${obj.status === 'COMPLETED' ? 'bg-active shadow-[0_0_20px_#00ff88]' : 'bg-neon shadow-[0_0_25px_#00f0ff]'}`} style={{ width: `${obj.progress}%` }} />
+              </div>
             </div>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderGrounding = (grounding: GroundingChunk[]) => (
+    <div className="mt-12 p-12 border border-active/40 bg-active/5 space-y-10 relative overflow-hidden shadow-[0_0_100px_rgba(0,255,136,0.1)]">
+      <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none select-none">
+         <span className="text-[100px] font-black text-active leading-none tracking-tighter">SOURCE_INTEL</span>
+      </div>
+      <div className="flex items-center gap-6 border-b border-active/30 pb-8">
+        <div className="w-5 h-5 bg-active shadow-[0_0_30px_#00ff88]" />
+        <div className="flex flex-col">
+          <span className="text-[14px] font-black text-active uppercase tracking-[1em] leading-none">Forensic_Verification</span>
+          <span className="text-[8px] text-tungsten font-black uppercase tracking-[0.4em] mt-3 opacity-60">Validated_Web_Grounding_Protocol</span>
         </div>
-      ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {grounding.map((chunk, idx) => {
+          const item = chunk.web || chunk.maps;
+          if (!item) return null;
+          return (
+            <a 
+              key={idx} 
+              href={item.uri} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[13px] text-chrome/80 hover:text-active transition-all flex items-center gap-6 group border border-steel/30 p-5 bg-void/60 hover:bg-active/10 hover:border-active/60"
+            >
+              <div className="w-10 h-10 border border-active/40 flex items-center justify-center shrink-0 group-hover:bg-active group-hover:text-void transition-all">
+                 <span className="text-[12px] font-black">{idx + 1}</span>
+              </div>
+              <div className="flex flex-col overflow-hidden">
+                <span className="truncate group-hover:underline tracking-tight uppercase font-black text-[14px]">{item.title || item.uri}</span>
+                <span className="text-[8px] text-tungsten font-bold tracking-[0.3em] mt-2 opacity-60">SOURCE_DOMAIN // {new URL(item.uri || '').hostname}</span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
 
-      {isThinking && (
-        <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-5xl mx-auto">
-          <div className="flex items-center gap-4 border-b border-thinking/30 pb-2">
-            <div className="w-2 h-4 bg-thinking animate-thinking shadow-[0_0_10px_#aa00ff]" />
-            <span className="text-[11px] font-black bg-thinking text-white px-3 py-1 uppercase tracking-[0.4em] shadow-lg">Cognitive_Fabric_Processing</span>
-            <div className="flex gap-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="w-1.5 h-1.5 bg-thinking animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
-              ))}
+  return (
+    <div className="flex-1 relative flex flex-col overflow-hidden">
+      <div className="absolute top-8 right-12 z-20 flex gap-6">
+        <button 
+          onClick={() => setShowRawLog(!showRawLog)}
+          className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest border transition-all ${showRawLog ? 'bg-warning text-void border-warning shadow-[0_0_15px_rgba(255,170,0,0.4)]' : 'bg-void/80 text-tungsten border-steel hover:text-chrome hover:bg-white/5'}`}
+        >
+          Raw_Telemetry_Terminal
+        </button>
+      </div>
+
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-10 md:p-16 lg:p-24 space-y-24 font-mono scrollbar-hide bg-void/5 relative custom-scrollbar">
+        <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto w-full space-y-24">
+          {entries.map((entry) => (
+            <div key={entry.id} className="animate-in fade-in slide-in-from-bottom-12 duration-1000">
+              <div className="flex items-center gap-10 border-b border-steel/30 pb-6 mb-10">
+                <div className={`w-2 h-7 ${
+                  entry.sender === 'USER' ? 'bg-chrome shadow-[0_0_10px_#fff]' : 
+                  entry.sender === 'AGENT' ? 'bg-neon shadow-[0_0_15px_#00f0ff]' : 
+                  entry.sender === 'CONSENSUS' ? 'bg-active shadow-[0_0_15px_#00ff88]' :
+                  entry.sender === 'MISSION_CONTROL' ? 'bg-warning shadow-[0_0_15px_#ffaa00]' : 'bg-active'
+                }`} />
+                <div className="flex flex-col">
+                  <span className={`text-[13px] font-black tracking-[0.6em] uppercase leading-none ${
+                    entry.sender === 'USER' ? 'text-chrome' : entry.sender === 'MISSION_CONTROL' ? 'text-warning' : entry.sender === 'AGENT' ? 'text-neon' : 'text-active'
+                  }`}>{entry.sender}</span>
+                  <span className="text-[7px] text-tungsten font-black uppercase tracking-[0.4em] mt-2 opacity-50">Transmission_Protocol: LOCKED_CHANNEL</span>
+                </div>
+                <div className="h-[1px] flex-1 bg-gradient-to-r from-steel/30 via-steel/10 to-transparent" />
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] text-tungsten font-bold tracking-widest opacity-60">{entry.timestamp}</span>
+                  <span className="text-[7px] text-neon font-black tracking-[0.3em] mt-1.5">{entry.metadata?.nodeId || 'GLOBAL_CNS'} // NODE_SYNC</span>
+                </div>
+              </div>
+              
+              <div className={`text-[16px] leading-relaxed whitespace-pre-wrap pl-12 border-l border-steel/20 ml-0.5 ${
+                entry.sender === 'USER' ? 'text-tungsten italic font-medium' : 'text-chrome/95 font-medium'
+              }`}>
+                {showRawLog ? (
+                  <div className="bg-obsidian/90 p-6 text-[11px] text-warning border border-warning/20 font-mono shadow-2xl overflow-x-auto whitespace-pre">
+                    {`[RAW_TELEMETRY_${entry.id}]\n${JSON.stringify(entry.metadata || {}, null, 2)}`}
+                    <div className="mt-6 border-t border-warning/10 pt-6 opacity-80">
+                      {entry.content}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`${entry.sender === 'SYSTEM' ? 'text-active font-black tracking-[0.1em] bg-active/5 p-4 border border-active/20' : ''}`}>
+                    {entry.content}
+                  </div>
+                )}
+                {renderTelemetry(entry)}
+                {entry.metadata?.thoughtSignature && renderThoughtSignature(entry.metadata.thoughtSignature)}
+                {entry.metadata?.plan && renderPlan(entry.metadata.plan)}
+                {entry.metadata?.grounding && renderGrounding(entry.metadata.grounding)}
+              </div>
             </div>
-          </div>
-          <div className="text-sm text-thinking/80 italic pl-6 border-l-2 border-thinking/30 flex flex-col gap-3">
-            <span className="animate-pulse tracking-wide uppercase text-[10px]">Syncing Mesh-Network... Validating GATES Protocols... Handshaking with Perfect Twin specialists...</span>
-            <div className="w-80 h-1 bg-steel/20 relative overflow-hidden">
-               <div className="absolute top-0 left-0 h-full bg-thinking animate-[loading_2.5s_infinite]" />
+          ))}
+
+          {isThinking && (
+            <div className="flex flex-col gap-10 animate-pulse border-l border-thinking/20 pl-12 ml-0.5">
+               <div className="flex items-center gap-10 border-b border-thinking/30 pb-6">
+                  <div className="w-2 h-7 bg-thinking shadow-[0_0_15px_#aa00ff]" />
+                  <div className="flex flex-col">
+                    <span className="text-[13px] font-black tracking-[0.6em] text-thinking uppercase leading-none">Cognitive_Fabric_Synthesizing</span>
+                    <span className="text-[7px] text-tungsten font-black uppercase tracking-[0.4em] mt-2 opacity-40">System_2_Thinking_Engagement</span>
+                  </div>
+               </div>
+               <div className="space-y-8">
+                  <div className="h-4 w-full bg-thinking/10 overflow-hidden relative border border-white/5 shadow-inner">
+                     <div className="h-full bg-thinking/40 w-1/4 animate-[loading_4s_infinite]" />
+                  </div>
+                  <div className="h-4 w-3/4 bg-thinking/10 overflow-hidden relative border border-white/5 shadow-inner">
+                     <div className="h-full bg-thinking/40 w-1/3 animate-[loading_3s_infinite_reverse]" />
+                  </div>
+               </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
-      <div className="h-32" />
+        <div className="h-64" />
+
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+          }
+        `}} />
+      </div>
     </div>
   );
 };
