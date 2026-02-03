@@ -1,6 +1,6 @@
 {
-  "name": "AGENTICUM G5 - Obsidian & Chrome",
-  "description": "An authoritative, industrial-grade agentic command center designed for precision reasoning and node-based task execution.",
+  "name": "AGENTICUM G5 - Neural Presence",
+  "description": "Multimodal agentic OS with real-time neural sync and autonomous visual reasoning.",
   "requestFramePermissions": [
     "camera",
     "microphone"

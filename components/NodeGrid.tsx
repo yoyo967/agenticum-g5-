@@ -25,8 +25,10 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
     return acc;
   }, {} as Record<ClusterType, AgentNode[]>);
 
+  const activeNode = nodes.find(n => n.id === activeNodeId);
+
   return (
-    <div className="flex flex-col h-full bg-void border-r border-steel w-64 shrink-0 overflow-hidden font-mono select-none">
+    <div className="flex flex-col h-full bg-void border-r border-steel w-72 shrink-0 overflow-hidden font-mono select-none">
       <div className="p-5 border-b border-steel bg-obsidian/80 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1 h-full bg-neon shadow-[0_0_10px_#00f0ff]" />
         <h2 className="text-chrome font-black text-[11px] tracking-[0.4em] uppercase flex items-center gap-3">
@@ -38,7 +40,7 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto scrollbar-hide p-2 space-y-2 bg-void/50">
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-2 space-y-2 bg-void/50 custom-scrollbar">
         {(Object.keys(CLUSTERS) as ClusterType[]).map((clusterKey) => {
           const clusterNodes = groupedNodes[clusterKey] || [];
           if (clusterNodes.length === 0) return null;
@@ -93,12 +95,6 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
                             style={{ width: `${node.load}%` }} 
                           />
                         </div>
-                        
-                        {isActive && (
-                          <div className="absolute top-0 right-0 p-1 opacity-20">
-                             <div className="w-1.5 h-1.5 bg-neon rotate-45" />
-                          </div>
-                        )}
                       </button>
                     );
                   })}
@@ -109,17 +105,27 @@ const NodeGrid: React.FC<NodeGridProps> = ({ nodes, activeNodeId, onSelectNode }
         })}
       </div>
 
-      <div className="p-4 border-t border-steel bg-obsidian/60">
-        <div className="flex flex-col gap-2">
-           <div className="flex justify-between items-center">
-             <span className="text-[7px] text-tungsten font-black uppercase tracking-widest">Global_Stability</span>
-             <span className="text-[7px] text-active font-black tracking-widest uppercase">99.98%</span>
-           </div>
-           <div className="h-[2px] bg-void w-full">
-             <div className="h-full bg-active w-[99.98%] shadow-[0_0_5px_#00ff88]" />
-           </div>
+      {activeNode && (
+        <div className="p-6 border-t border-steel bg-obsidian/90 space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-neon font-black uppercase tracking-widest">{activeNode.id}_DOSSIER</span>
+            <div className="w-2 h-2 bg-neon animate-pulse" />
+          </div>
+          <p className="text-[9px] text-chrome/60 leading-relaxed font-bold uppercase tracking-widest">
+            {activeNode.description}
+          </p>
+          <div className="pt-2 flex flex-col gap-2">
+             <div className="flex justify-between text-[8px] font-black">
+               <span className="text-tungsten uppercase">COGNITIVE_AFFINITY</span>
+               <span className="text-neon">GEMINI_3_PRO</span>
+             </div>
+             <div className="flex justify-between text-[8px] font-black">
+               <span className="text-tungsten uppercase">LATENCY_PROTOCOL</span>
+               <span className="text-active">SUB_100MS</span>
+             </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

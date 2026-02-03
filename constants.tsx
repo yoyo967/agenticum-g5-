@@ -13,16 +13,75 @@ export const CLUSTERS: Record<ClusterType, { label: string; prefix: string }> = 
   SPECIAL_OPS: { label: 'Cluster 7: Special Ops', prefix: 'PS' },
 };
 
-// The Elite 8 primary nodes, part of a wider 52-node fabric
+// FULL 52-NODE MANIFEST FOR SOVEREIGN_OS v5.0.2
 export const NODE_MANIFEST: AgentNode[] = [
-  { id: 'SN-00', name: 'Global Orchestrator', cluster: 'APEX', status: NodeStatus.ONLINE, load: 0, description: 'Central CNS governing objective decomposition and high-level mission alignment.' },
-  { id: 'RA-01', name: 'Market Intel', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Real-time grounding and trend forensics using high-fidelity search nodes.' },
-  { id: 'SP-01', name: 'Strategic Lead', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'High-budget causal reasoning and strategic narrative architecture.' },
-  { id: 'CC-01', name: 'Copy Chief', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Multi-platform textual asset synthesis and brand voice calibration.' },
-  { id: 'CC-10', name: 'Art Director', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Imagen 3 Pro high-fidelity graphic production and visual style guide enforcement.' },
-  { id: 'CC-06', name: 'Cinema Lead', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Veo 3.1 cinematic video generation and dynamic sequence synthesis.' },
-  { id: 'CC-12', name: 'Voice Engineer', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'High-fidelity TTS and acoustic artifact synthesis for brand briefings.' },
-  { id: 'MI-01', name: 'Policy Governor', cluster: 'GOVERNANCE', status: NodeStatus.ONLINE, load: 0, description: 'Final compliance and sovereign safety gateway for all synthesized artifacts.' }
+  // CLUSTER 0: APEX (1 Node)
+  { id: 'SN-00', name: 'Global Orchestrator', cluster: 'APEX', status: NodeStatus.ONLINE, load: 0, description: 'Central CNS governing objective decomposition.' },
+  
+  // CLUSTER 1: STRATEGY (7 Nodes)
+  { id: 'SP-01', name: 'Strategic Lead', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'High-budget causal reasoning.' },
+  { id: 'SP-02', name: 'Market Architect', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'Economic structural analysis.' },
+  { id: 'SP-03', name: 'Scenario Engine', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'Probabilistic future modeling.' },
+  { id: 'SP-04', name: 'Brand Sovereignty', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'Identity alignment protocols.' },
+  { id: 'SP-05', name: 'Risk Mitigator', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'Operational vulnerability scan.' },
+  { id: 'SP-06', name: 'Global Scale Unit', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'International expansion logic.' },
+  { id: 'SP-99', name: 'Chaos Controller', cluster: 'STRATEGY', status: NodeStatus.ONLINE, load: 0, description: 'Black-swan event resilience.' },
+
+  // CLUSTER 2: INTELLIGENCE (8 Nodes)
+  { id: 'RA-01', name: 'Market Intel', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Real-time trend forensics.' },
+  { id: 'RA-02', name: 'Competitor Radar', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Rival maneuver tracking.' },
+  { id: 'RA-03', name: 'Sentiment Deep', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Neural emotion decoding.' },
+  { id: 'RA-04', name: 'Data Miner Alpha', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Unstructured data synthesis.' },
+  { id: 'RA-05', name: 'Signal Filter', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Noise-to-value distillation.' },
+  { id: 'RA-06', name: 'Geopolitical Scan', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Macro-environmental tracking.' },
+  { id: 'RA-07', name: 'Tech Scout', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Emerging tech integration.' },
+  { id: 'RA-52', name: 'Adversarial Defense', cluster: 'INTELLIGENCE', status: NodeStatus.ONLINE, load: 0, description: 'Deep-fake and IP shield.' },
+
+  // CLUSTER 3: CREATION (12 Nodes)
+  { id: 'CC-01', name: 'Copy Chief', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Multi-platform narrative synthesis.' },
+  { id: 'CC-02', name: 'Concept Artist', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Initial visual ideation.' },
+  { id: 'CC-03', name: 'UX Designer', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Interface behavior modeling.' },
+  { id: 'CC-04', name: 'Motion Lead', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Dynamic movement synthesis.' },
+  { id: 'CC-05', name: 'Script Writer', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Cinematic narrative flow.' },
+  { id: 'CC-06', name: 'Cinema Lead', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Veo 3.1 video generation.' },
+  { id: 'CC-07', name: 'Music Synthesizer', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Atmospheric audio forge.' },
+  { id: 'CC-08', name: '3D Modeler', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Spatial asset construction.' },
+  { id: 'CC-09', name: 'Colorist', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Visual mood calibration.' },
+  { id: 'CC-10', name: 'Art Director', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Imagen 3 Pro visual lead.' },
+  { id: 'CC-11', name: 'Typography Engine', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'Font-mesh optimization.' },
+  { id: 'CC-12', name: 'Voice Engineer', cluster: 'CREATION', status: NodeStatus.ONLINE, load: 0, description: 'High-fidelity TTS synth.' },
+
+  // CLUSTER 4: GOVERNANCE (6 Nodes)
+  { id: 'MI-01', name: 'Policy Governor', cluster: 'GOVERNANCE', status: NodeStatus.ONLINE, load: 0, description: 'Compliance gateway.' },
+  { id: 'MI-02', name: 'Ethical Auditor', cluster: 'GOVERNANCE', status: NodeStatus.ONLINE, load: 0, description: 'Bias detection protocols.' },
+  { id: 'MI-03', name: 'Legal Counsel', cluster: 'GOVERNANCE', status: NodeStatus.ONLINE, load: 0, description: 'IP rights verification.' },
+  { id: 'MI-04', name: 'Privacy Shield', cluster: 'GOVERNANCE', status: NodeStatus.ONLINE, load: 0, description: 'Data protection enforcement.' },
+  { id: 'MI-05', name: 'Brand Guardian', cluster: 'GOVERNANCE', status: NodeStatus.ONLINE, load: 0, description: 'Consistency monitoring.' },
+  { id: 'MI-06', name: 'Sustainability Monitor', cluster: 'GOVERNANCE', status: NodeStatus.ONLINE, load: 0, description: 'ESG metric tracking.' },
+
+  // CLUSTER 5: FINANCE (6 Nodes)
+  { id: 'DT-01', name: 'Budget Allocator', cluster: 'FINANCE', status: NodeStatus.ONLINE, load: 0, description: 'Resource distribution.' },
+  { id: 'DT-02', name: 'ROI Predictor', cluster: 'FINANCE', status: NodeStatus.ONLINE, load: 0, description: 'Profitability forecasting.' },
+  { id: 'DT-03', name: 'Procurement Lead', cluster: 'FINANCE', status: NodeStatus.ONLINE, load: 0, description: 'Asset acquisition.' },
+  { id: 'DT-04', name: 'Audit Log', cluster: 'FINANCE', status: NodeStatus.ONLINE, load: 0, description: 'Financial transparency.' },
+  { id: 'DT-05', name: 'Risk Capitalist', cluster: 'FINANCE', status: NodeStatus.ONLINE, load: 0, description: 'Investment strategy.' },
+  { id: 'DT-06', name: 'Tax Compliance', cluster: 'FINANCE', status: NodeStatus.ONLINE, load: 0, description: 'Regulatory finance scan.' },
+
+  // CLUSTER 6: EDUCATION (6 Nodes)
+  { id: 'ED-01', name: 'Knowledge Base', cluster: 'EDUCATION', status: NodeStatus.ONLINE, load: 0, description: 'Historical data storage.' },
+  { id: 'ED-02', name: 'Learning Loop', cluster: 'EDUCATION', status: NodeStatus.ONLINE, load: 0, description: 'Self-improvement logic.' },
+  { id: 'ED-03', name: 'Training Module', cluster: 'EDUCATION', status: NodeStatus.ONLINE, load: 0, description: 'Human onboarding assist.' },
+  { id: 'ED-04', name: 'Doc Generator', cluster: 'EDUCATION', status: NodeStatus.ONLINE, load: 0, description: 'Technical documentation.' },
+  { id: 'ED-05', name: 'Case Study Lead', cluster: 'EDUCATION', status: NodeStatus.ONLINE, load: 0, description: 'Retrospective analysis.' },
+  { id: 'ED-06', name: 'Curriculum Synth', cluster: 'EDUCATION', status: NodeStatus.ONLINE, load: 0, description: 'Dynamic training plans.' },
+
+  // CLUSTER 7: SPECIAL OPS (6 Nodes)
+  { id: 'PS-01', name: 'Rapid Deployment', cluster: 'SPECIAL_OPS', status: NodeStatus.ONLINE, load: 0, description: 'Instant response logic.' },
+  { id: 'PS-02', name: 'Stealth Growth', cluster: 'SPECIAL_OPS', status: NodeStatus.ONLINE, load: 0, description: 'Under-the-radar marketing.' },
+  { id: 'PS-03', name: 'Viral Catalyst', cluster: 'SPECIAL_OPS', status: NodeStatus.ONLINE, load: 0, description: 'Social trigger analysis.' },
+  { id: 'PS-04', name: 'Ghost Writer', cluster: 'SPECIAL_OPS', status: NodeStatus.ONLINE, load: 0, description: 'Persona-based synthesis.' },
+  { id: 'PS-05', name: 'Edge Case Lead', cluster: 'SPECIAL_OPS', status: NodeStatus.ONLINE, load: 0, description: 'Non-standard resolution.' },
+  { id: 'PS-06', name: 'Final Oversight', cluster: 'SPECIAL_OPS', status: NodeStatus.ONLINE, load: 0, description: 'Pre-launch kill switch.' }
 ];
 
 export const ICONS = {

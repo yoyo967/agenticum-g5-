@@ -30,31 +30,48 @@ const NeuralInterfacer: React.FC<NeuralInterfacerProps> = ({ isThinking, entropy
       canvas.height = window.innerHeight;
     };
 
-    const draw = () => {
+    const draw = (t: number) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      if (!showVision) {
-        // Standard Particles if no Vision
-        // (Particle logic for ambient mode)
-      } else {
-        // Vision HUD Overlays
-        ctx.strokeStyle = 'rgba(255, 0, 85, 0.3)';
+      if (showVision) {
+        ctx.strokeStyle = '#00f0ff';
         ctx.lineWidth = 1;
-        
-        // Fadenkreuz
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        ctx.beginPath();
-        ctx.moveTo(cx - 50, cy); ctx.lineTo(cx + 50, cy);
-        ctx.moveTo(cx, cy - 50); ctx.lineTo(cx, cy + 50);
-        ctx.stroke();
+        const time = t / 1000;
+
+        // Dynamic Targeting HUD
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(time * 0.2);
         
-        // Ecken-HUD
-        const pad = 100;
-        ctx.strokeRect(pad, pad, 40, 40); // Top Left
-        ctx.strokeRect(canvas.width - pad - 40, pad, 40, 40); // Top Right
-        ctx.strokeRect(pad, canvas.height - pad - 40, 40, 40); // Bottom Left
-        ctx.strokeRect(canvas.width - pad - 40, canvas.height - pad - 40, 40, 40); // Bottom Right
+        // Circular brackets
+        for(let i=0; i<4; i++) {
+          ctx.beginPath();
+          ctx.arc(0, 0, 150, i * Math.PI/2 + 0.2, (i+1) * Math.PI/2 - 0.2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Corner Scanners
+        const scanY = (time * 200) % canvas.height;
+        ctx.beginPath();
+        ctx.moveTo(0, scanY);
+        ctx.lineTo(canvas.width, scanY);
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+        ctx.stroke();
+
+        // Military HUD Text
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = '10px JetBrains Mono';
+        ctx.fillText(`LATENCY: ${(Math.random() * 20 + 10).toFixed(2)}ms`, 50, 50);
+        ctx.fillText(`FRAME_SYNC: OK`, 50, 70);
+        ctx.fillText(`ENTROPY_FLUX: ${entropy.toFixed(4)}`, 50, 90);
+      } else if (isThinking) {
+        // Subtle Pulse
+        const alpha = 0.05 + Math.sin(t / 200) * 0.02;
+        ctx.fillStyle = `rgba(170, 0, 255, ${alpha})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
       animationFrameId = requestAnimationFrame(draw);
@@ -62,7 +79,7 @@ const NeuralInterfacer: React.FC<NeuralInterfacerProps> = ({ isThinking, entropy
 
     window.addEventListener('resize', resize);
     resize();
-    draw();
+    animationFrameId = requestAnimationFrame(draw);
 
     return () => {
       window.removeEventListener('resize', resize);
@@ -78,10 +95,12 @@ const NeuralInterfacer: React.FC<NeuralInterfacerProps> = ({ isThinking, entropy
           autoPlay 
           playsInline 
           muted 
-          className="w-full h-full object-cover opacity-20 grayscale brightness-50"
+          className="w-full h-full object-cover opacity-30 grayscale sepia brightness-75 contrast-125"
+          style={{ filter: 'hue-rotate(150deg) saturate(2)' }}
         />
       )}
-      <canvas ref={canvasRef} className="absolute inset-0 opacity-40 transition-opacity duration-1000" />
+      <canvas ref={canvasRef} className="absolute inset-0 z-10 opacity-60" />
+      <div className={`absolute inset-0 transition-opacity duration-1000 ${isThinking ? 'opacity-20' : 'opacity-0'} bg-[radial-gradient(circle_at_center,_#aa00ff44_0%,transparent_70%)]`} />
     </div>
   );
 };

@@ -39,6 +39,7 @@ export interface NodeOutput {
   plan?: StrategicObjective[]; 
   thoughtSignature?: string;
   tokensUsed?: number;
+  evolutionDelta?: number;
 }
 
 export interface AgentNode {
@@ -48,12 +49,13 @@ export interface AgentNode {
   status: NodeStatus;
   load: number;
   description: string;
+  mirrorActive?: boolean;
 }
 
 export interface TraceEntry {
   id: string;
   timestamp: string;
-  sender: 'USER' | 'AGENT' | 'SYSTEM' | 'THOUGHT' | 'CONSENSUS' | 'MISSION_CONTROL';
+  sender: 'USER' | 'AGENT' | 'SYSTEM' | 'THOUGHT' | 'CONSENSUS' | 'MISSION_CONTROL' | 'NEURAL_MIRROR';
   content: string;
   type: 'text' | 'code' | 'thinking' | 'image' | 'video' | 'audio' | 'plan';
   metadata?: {
@@ -69,23 +71,8 @@ export interface TraceEntry {
     validatingNodes?: string[];
     thoughtSignature?: string;
     targetNode?: string;
+    mirrorOptimization?: string;
   };
-}
-
-export interface DeploymentConfig {
-  thinkingBudget: number;
-  maxTokens: number;
-  nodeId: string;
-  imageSize?: '1K' | '2K' | '4K';
-  aspectRatio?: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9';
-  useMaps?: boolean;
-  useSearch?: boolean;
-}
-
-export interface FileData {
-  data: string;
-  mimeType: string;
-  name: string;
 }
 
 export interface StrategicObjective {
@@ -95,6 +82,7 @@ export interface StrategicObjective {
   status: 'ACTIVE' | 'PENDING' | 'HALTED' | 'COMPLETED';
   assignedNode: string;
   description: string;
+  type?: 'RESEARCH' | 'IMAGE' | 'VIDEO' | 'STRATEGY';
 }
 
 export interface SessionAsset {
@@ -107,10 +95,17 @@ export interface SessionAsset {
   mimeType?: string;
   content?: string;
   grounding?: GroundingChunk[];
+  isRefined?: boolean;
 }
 
-export interface BootState {
-  isBooting: boolean;
-  progress: number;
-  message: string;
+export interface FileData {
+  data: string;
+  mimeType: string;
+  name?: string;
+}
+
+export interface DeploymentConfig {
+  nodeId: string;
+  thinkingBudget?: number;
+  maxTokens?: number;
 }

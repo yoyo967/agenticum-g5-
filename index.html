@@ -20,6 +20,7 @@
                         chrome: '#f0f0f0',
                         tungsten: '#999999',
                         neon: '#00f0ff',
+                        amethyst: '#aa00ff',
                         active: '#00ff88',
                         warning: '#ffaa00',
                         error: '#ff0055',
@@ -32,6 +33,13 @@
                     animation: {
                         'glitch': 'glitch 0.3s cubic-bezier(.25,.46,.45,.94) both infinite',
                         'scanline': 'scanline 8s linear infinite',
+                        'mirror-pulse': 'mirror-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        'mirror-pulse': {
+                            '0%, 100%': { opacity: 1, filter: 'brightness(1)' },
+                            '50%': { opacity: 0.8, filter: 'brightness(1.5) drop-shadow(0 0 10px #aa00ff)' },
+                        }
                     }
                 }
             }
@@ -44,7 +52,7 @@
             --steel: #222222;
             --chrome: #f0f0f0;
             --neon: #00f0ff;
-            --active: #00ff88;
+            --amethyst: #aa00ff;
         }
 
         body {
@@ -56,9 +64,14 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        .mirror-mode {
+            --neon: var(--amethyst);
+            filter: hue-rotate(280deg) contrast(1.1);
+        }
+
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: var(--void); }
-        ::-webkit-scrollbar-thumb { background: #333; }
+        ::-webkit-scrollbar-thumb { background: #333; border: 1px solid var(--steel); }
         ::-webkit-scrollbar-thumb:hover { background: var(--neon); }
 
         .crt-overlay {
@@ -67,17 +80,8 @@
                         linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
             background-size: 100% 3px, 3px 100%;
             pointer-events: none; z-index: 999;
-            opacity: 0.3;
+            opacity: 0.2;
         }
-
-        .scanline {
-            width: 100%; height: 100px; z-index: 1000;
-            background: linear-gradient(0deg, transparent 0%, rgba(0, 240, 255, 0.03) 50%, transparent 100%);
-            position: absolute; top: -100px;
-            animation: scanline 8s linear infinite;
-            pointer-events: none;
-        }
-        @keyframes scanline { 0% { top: -100px; } 100% { top: 100%; } }
 
         .grid-bg {
             background-image: linear-gradient(rgba(255,255,255,0.01) 1px, transparent 1px),
@@ -85,13 +89,6 @@
             background-size: 40px 40px;
         }
 
-        * { border-radius: 0 !important; }
-        input::placeholder { color: rgba(153, 153, 153, 0.3); text-transform: uppercase; letter-spacing: 0.15em; font-size: 10px; }
-        
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--neon); }
-        
         @keyframes glitch {
             0% { transform: translate(0) }
             20% { transform: translate(-2px, 2px) }
@@ -100,21 +97,24 @@
             80% { transform: translate(2px, -2px) }
             100% { transform: translate(0) }
         }
+
+        .glitch-active {
+            animation: glitch 0.2s linear infinite;
+        }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
     "react/": "https://esm.sh/react@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+    "react": "https://esm.sh/react@^19.2.4"
   }
 }
 </script>
 </head>
 <body class="grid-bg">
     <div class="crt-overlay"></div>
-    <div class="scanline"></div>
     <div id="root"></div>
 </body>
 </html>

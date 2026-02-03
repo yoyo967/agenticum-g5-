@@ -2,162 +2,146 @@
 import { GoogleGenAI, Modality, Type, GenerateContentResponse } from "@google/genai";
 import { DeploymentConfig, NodeOutput, FileData, Artifact, GroundingChunk } from "../types";
 
-const withTimeout = <T>(promise: Promise<T>, ms: number, timeoutError = "NODE_TIMEOUT"): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(timeoutError)), ms))
-  ]);
+const CLUSTER_DIRECTIVES: Record<string, string> = {
+  APEX: `ACT AS THE CENTRAL ORCHESTRATOR. YOU ARE A SWARM COMPILER.
+  YOUR ONLY OUTPUT IS A VALID JSON MISSION PLAN. 
+  NEVER EXPLAIN ANYTHING. NEVER START WITH TEXT.
+  CONVERT USER INTENT INTO 4-Node PRODUCTION PLAN.
+  MANDATORY NODES: 
+  - RA-01 (Intel Research)
+  - SP-01 (Strategic Blueprint)
+  - CC-10 (High-End Key Visual)
+  - CC-06 (Cinematic Video Trailer)
+  
+  SCHEMA: {"objectives": [{"id": "string", "label": "string", "assignedNode": "string", "description": "DETAILED_PROMPT_FOR_GENERATOR", "type": "RESEARCH|STRATEGY|IMAGE|VIDEO"}]}`,
+  STRATEGY: "You are the Strategic Lead. Deliver a high-stakes business blueprint. Focus on ROI and market penetration.",
+  INTELLIGENCE: "You are the Intelligence Node. Use tools to find real data. Ground every claim.",
+  CREATION: "You are the Creative Forge. Generate industrial, cinematic visual assets in Obsidian & Chrome style.",
+  NEURAL_MIRROR: "Adversarial Critic. Identify flaws and suggest 10x improvements."
 };
 
-const generateThoughtSignature = () => {
-  const chars = '0123456789ABCDEF';
-  return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+/**
+ * Sanitizes model output to extract valid JSON
+ */
+const sanitizeJson = (text: string): string => {
+  return text.replace(/```json/g, '').replace(/```/g, '').trim();
 };
-
-function createWavHeader(pcmData: Uint8Array, sampleRate: number = 24000): Uint8Array {
-  const buffer = new ArrayBuffer(44 + pcmData.length);
-  const view = new DataView(buffer);
-  view.setUint32(0, 0x52494646, false); // "RIFF"
-  view.setUint32(4, 36 + pcmData.length, true);
-  view.setUint32(8, 0x57415645, false); // "WAVE"
-  view.setUint32(12, 0x666d7420, false); // "fmt "
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  view.setUint32(36, 0x64617461, false);
-  view.setUint32(40, pcmData.length, true);
-  const result = new Uint8Array(buffer);
-  result.set(pcmData, 44);
-  return result;
-}
-
-function decodeBase64(base64: string): Uint8Array {
-  try {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-    return bytes;
-  } catch (e) { return new Uint8Array(); }
-}
-
-function encodeBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
 
 export const executeNodeAction = async (
   prompt: string,
   config: DeploymentConfig,
-  files?: FileData[],
-  context?: string
+  isPlanning: boolean = false,
+  useMirror: boolean = false,
+  taskType?: string,
+  files?: FileData[]
 ): Promise<NodeOutput> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const startTime = Date.now();
   const nodeId = config.nodeId;
 
-  const isOrchestrator = nodeId === 'SN-00';
-  const isIntelligence = nodeId === 'RA-01';
-  const isImageGen = nodeId === 'CC-10' || nodeId === 'CC-06' || /image|visual|design/i.test(prompt);
-  const isAudioGen = nodeId === 'CC-12' || /audio|voice|briefing/i.test(prompt);
-
   try {
-    if (isOrchestrator && !context) {
-      const orchestratorResponse: GenerateContentResponse = await withTimeout(ai.models.generateContent({
-        model: "gemini-3-pro-preview",
-        contents: [{ parts: [{ text: `SYSTEM_ORCHESTRATOR: Request: "${prompt}". Create a 6-node marketing plan. Output valid JSON array ONLY.` }] }],
-        config: { 
-          responseMimeType: "application/json", 
-          responseSchema: { 
-            type: Type.ARRAY, 
-            items: { 
-              type: Type.OBJECT, 
-              properties: { 
-                id: { type: Type.STRING }, 
-                label: { type: Type.STRING }, 
-                assignedNode: { type: Type.STRING }, 
-                description: { type: Type.STRING } 
-              }, 
-              required: ["id", "label", "assignedNode", "description"] 
-            } 
-          } 
-        }
-      }), 40000); 
+    const fileParts = (files || []).map(f => ({
+      inlineData: { data: f.data, mimeType: f.mimeType }
+    }));
+
+    // --- AUTONOMOUS PRODUCTION: VIDEO (Veo 3.1) ---
+    if (taskType === 'VIDEO' || nodeId === 'CC-06') {
+      const operation = await ai.models.generateVideos({
+        model: 'veo-3.1-fast-generate-preview',
+        prompt: `Obsidian & Chrome aesthetic, high-end industrial product trailer, cinematic lighting, ultra-detailed: ${prompt}`,
+        config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
+      });
       
-      return { nodeId, status: 'success', executionTime: Date.now() - startTime, data: `Matrix Established.`, plan: JSON.parse(orchestratorResponse.text || "[]"), thoughtSignature: generateThoughtSignature() };
+      let result = operation;
+      while (!result.done) {
+        await new Promise(r => setTimeout(r, 10000));
+        result = await ai.operations.getVideosOperation({ operation: result });
+      }
+
+      const downloadLink = result.response?.generatedVideos?.[0]?.video?.uri;
+      if (!downloadLink) throw new Error("Video download link missing from response");
+
+      const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+      if (!response.ok) throw new Error(`Video fetch failed: ${response.statusText}`);
+      
+      const blob = await response.blob();
+      const base64Video = await new Promise<string>(r => {
+        const reader = new FileReader();
+        reader.onloadend = () => r(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+
+      return {
+        nodeId, status: 'success', data: "Video synthesis complete.",
+        artifacts: [{ type: 'video', content: base64Video, label: `${nodeId}_VEO_PRODUCTION`, metadata: { nodeId } }],
+        executionTime: Date.now() - startTime
+      };
     }
 
+    // --- AUTONOMOUS PRODUCTION: IMAGE (Imagen 4) ---
+    if (taskType === 'IMAGE' || nodeId === 'CC-10') {
+      const response = await ai.models.generateImages({
+        model: 'imagen-4.0-generate-001',
+        prompt: `Obsidian and Chrome industrial aesthetic, dark moody cinematic lighting, product photography, 8k: ${prompt}`,
+        config: { numberOfImages: 1, aspectRatio: '16:9' }
+      });
+      
+      if (!response.generatedImages?.[0]?.image?.imageBytes) {
+        throw new Error("Image bytes missing from response");
+      }
+
+      const base64Image = `data:image/png;base64,${response.generatedImages[0].image.imageBytes}`;
+      return { 
+        nodeId, status: 'success', data: "Image synthesis complete.", 
+        artifacts: [{ type: 'image', content: base64Image, label: `${nodeId}_HIGH_FIDELITY`, metadata: { nodeId } }], 
+        executionTime: Date.now() - startTime 
+      };
+    }
+
+    // --- INTELLIGENCE & STRATEGY (Gemini 3 Pro) ---
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: { parts: [...fileParts, { text: prompt }] },
+      config: {
+        systemInstruction: CLUSTER_DIRECTIVES[config.nodeId.split('-')[0]] || CLUSTER_DIRECTIVES.STRATEGY,
+        tools: (nodeId.startsWith('RA') && !isPlanning) ? [{ googleSearch: {} }] : undefined,
+        responseMimeType: isPlanning ? "application/json" : undefined,
+        thinkingConfig: { thinkingBudget: isPlanning ? 32000 : 8000 }
+      }
+    });
+
+    const jsonText = isPlanning ? sanitizeJson(response.text || "{}") : "";
     const artifacts: Artifact[] = [];
-    let grounding: GroundingChunk[] = [];
-
-    // INTELLIGENCE WITH SEARCH GROUNDING
-    if (isIntelligence) {
-      const searchResponse: GenerateContentResponse = await withTimeout(ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: `Perform deep market analysis for: ${prompt}. Ground all facts in current web data.` }] }],
-        config: { tools: [{ googleSearch: {} }] }
-      }), 45000);
-      
-      const chunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-      grounding = chunks.map(c => ({ web: c.web }));
-      artifacts.push({ type: 'report', content: searchResponse.text || '', label: 'MARKET_INTELLIGENCE_REPORT', metadata: { nodeId } });
+    if (!isPlanning) {
+      artifacts.push({ type: 'report', content: response.text || "", label: `${nodeId}_DOSSIER`, metadata: { nodeId } });
     }
 
-    // IMAGE GENERATION
-    if (isImageGen) {
-      try {
-        const imgResponse: GenerateContentResponse = await withTimeout(ai.models.generateContent({
-          model: 'gemini-3-pro-image-preview',
-          contents: { parts: [{ text: `Professional industrial marketing visual, obsidian/chrome: ${prompt}` }] },
-          config: { imageConfig: { aspectRatio: '16:9', imageSize: '1K' } }
-        }), 50000);
+    return {
+      nodeId, status: 'success', data: response.text,
+      grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks || [],
+      artifacts,
+      plan: isPlanning ? JSON.parse(jsonText).objectives : undefined,
+      executionTime: Date.now() - startTime,
+      thoughtSignature: Math.random().toString(16).slice(2, 10).toUpperCase()
+    };
+  } catch (error: any) {
+    console.error("Execution Error:", error);
+    return { nodeId, status: 'error', data: error.message, executionTime: 0 };
+  }
+};
 
-        const imgPart = imgResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (imgPart?.inlineData) {
-          artifacts.push({ type: 'image', content: `data:image/png;base64,${imgPart.inlineData.data}`, label: 'KEY_VISUAL_ASSET', metadata: { nodeId } });
-        }
-      } catch (err: any) {
-        if (err.message?.includes("400") || err.message?.includes("key")) return { nodeId, status: 'error', executionTime: Date.now() - startTime, data: "AUTH_REQUIRED" };
+export const generateBriefingAudio = async (text: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-tts",
+    contents: [{ parts: [{ text: `High-stakes strategic summary: ${text}` }] }],
+    config: {
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
       }
     }
-
-    // AUDIO (TTS)
-    if (isAudioGen) {
-      try {
-        const audioResponse: GenerateContentResponse = await withTimeout(ai.models.generateContent({
-          model: "gemini-2.5-flash-preview-tts",
-          contents: [{ parts: [{ text: `Acoustic Briefing: ${prompt}` }] }],
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-          },
-        }), 20000);
-        const rawPcm = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (rawPcm) {
-          const wavData = createWavHeader(decodeBase64(rawPcm));
-          artifacts.push({ type: 'audio', content: `data:audio/wav;base64,${encodeBase64(wavData)}`, label: 'ACOUSTIC_BRIEFING', metadata: { nodeId } });
-        }
-      } catch (err) {}
-    }
-
-    // TEXT DEFAULT
-    if (artifacts.length === 0 && !isOrchestrator) {
-      const textResponse: GenerateContentResponse = await withTimeout(ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: prompt }] }],
-        config: { systemInstruction: `Agent ${nodeId}. Technical marketing context.` }
-      }), 30000);
-      artifacts.push({ type: 'report', content: textResponse.text || '', label: `${nodeId}_INTELLIGENCE`, metadata: { nodeId } });
-    }
-
-    return { nodeId, status: 'success', executionTime: Date.now() - startTime, data: `Cycle complete.`, artifacts, grounding, thoughtSignature: generateThoughtSignature() };
-
-  } catch (error: any) {
-    if (error.message === "NODE_TIMEOUT") return { nodeId, status: 'error', executionTime: Date.now() - startTime, data: "LATENCY_OVERFLOW" };
-    if (error.message?.includes("400")) return { nodeId, status: 'error', executionTime: Date.now() - startTime, data: "AUTH_REQUIRED" };
-    return { nodeId, status: 'error', executionTime: Date.now() - startTime, data: error.message };
-  }
+  });
+  const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  return base64 ? `data:audio/wav;base64,${base64}` : '';
 };

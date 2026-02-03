@@ -12,8 +12,17 @@ interface CommandLineProps {
   disabled: boolean;
 }
 
+const COMMAND_SUGGESTIONS = [
+  { label: 'DEEP_SCAN', cmd: 'Perform a comprehensive competitive analysis' },
+  { label: 'VISUAL_FORGE', cmd: 'Create a high-end key visual' },
+  { label: 'ACOUSTIC_BRIEF', cmd: 'Generate a strategic audio briefing' },
+  { label: 'SOVEREIGN_AUDIT', cmd: 'Audit my current strategy for compliance' }
+];
+
 const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, onOpenDiagnostics, isLive, isVision, disabled }) => {
   const [input, setInput] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [isHovered, setIsHovered] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileData[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,8 +31,31 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, onOp
     e.preventDefault();
     if (input.trim() && !disabled) {
       onExecute(input.trim(), selectedFiles.length > 0 ? selectedFiles : undefined);
+      setHistory(prev => [input.trim(), ...prev.slice(0, 49)]);
       setInput('');
+      setHistoryIndex(-1);
       setSelectedFiles([]);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const nextIndex = historyIndex + 1;
+      if (nextIndex < history.length) {
+        setHistoryIndex(nextIndex);
+        setInput(history[nextIndex]);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIndex = historyIndex - 1;
+      if (nextIndex >= 0) {
+        setHistoryIndex(nextIndex);
+        setInput(history[nextIndex]);
+      } else {
+        setHistoryIndex(-1);
+        setInput('');
+      }
     }
   };
 
@@ -53,12 +85,28 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, onOp
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
+        {/* Quick Action Suggestions */}
+        {!input && !disabled && !isLive && (
+          <div className="flex gap-4 mb-2 animate-in fade-in slide-in-from-left duration-500">
+            {COMMAND_SUGGESTIONS.map((s) => (
+              <button 
+                key={s.label}
+                onClick={() => setInput(s.cmd)}
+                className="px-4 py-1.5 border border-steel/40 text-[9px] text-tungsten font-black uppercase tracking-widest hover:border-neon hover:text-neon transition-all bg-void/50"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {selectedFiles.length > 0 && (
           <div className="flex gap-4 mb-2 animate-in slide-in-from-bottom-4 duration-500">
             {selectedFiles.map((f, i) => (
               <div key={i} className="px-4 py-2 bg-neon/10 border border-neon/40 text-[10px] text-neon font-black flex items-center gap-3">
-                 <span className="uppercase tracking-widest">{f.name}</span>
-                 <button onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-white transition-colors">×</button>
+                 <div className="w-2 h-2 bg-neon shadow-[0_0_8px_#00f0ff]" />
+                 <span className="uppercase tracking-widest truncate max-w-[150px]">{f.name}</span>
+                 <button onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-white transition-colors p-1 ml-2">×</button>
               </div>
             ))}
           </div>
@@ -69,7 +117,7 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, onOp
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="px-6 border border-steel text-tungsten hover:border-chrome hover:text-chrome transition-all flex items-center justify-center bg-steel/5"
-            title="Upload Asset"
+            title="Attach Context Asset (Multimodal)"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" />
@@ -82,33 +130,14 @@ const CommandLine: React.FC<CommandLineProps> = ({ onExecute, onToggleLive, onOp
             <input
               type="text"
               value={input}
+              onKeyDown={handleKeyDown}
               onChange={(e) => setInput(e.target.value)}
               disabled={disabled || isLive}
-              placeholder={isLive ? "SYTEM_LISTENING..." : "TRANSMIT_SOVEREIGN_COMMAND..."}
+              placeholder={isLive ? "LISTENING..." : "TRANSMIT_SOVEREIGN_COMMAND..."}
               className="w-full h-full bg-transparent px-4 text-[14px] text-chrome focus:outline-none tracking-widest font-bold placeholder:opacity-20 uppercase"
             />
           </div>
           
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => onToggleLive(false)}
-              className={`px-6 border flex items-center gap-3 transition-all duration-300 ${isLive && !isVision ? 'border-thinking text-thinking bg-thinking/10 shadow-[0_0_20px_rgba(170,0,255,0.2)]' : 'border-steel text-tungsten hover:border-thinking hover:text-thinking bg-steel/5'}`}
-            >
-              <div className={`w-2 h-2 rounded-full ${isLive && !isVision ? 'bg-thinking animate-pulse' : 'bg-steel/40'}`} />
-              <span className="text-[11px] font-black tracking-widest uppercase">AUDIO</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onToggleLive(true)}
-              className={`px-6 border flex items-center gap-3 transition-all duration-300 ${isLive && isVision ? 'border-error text-error bg-error/10 shadow-[0_0_20px_rgba(255,0,85,0.2)]' : 'border-steel text-tungsten hover:border-error hover:text-error bg-steel/5'}`}
-            >
-              <div className={`w-2 h-2 rounded-full ${isLive && isVision ? 'bg-error animate-pulse' : 'bg-steel/40'}`} />
-              <span className="text-[11px] font-black tracking-widest uppercase">VISION</span>
-            </button>
-          </div>
-
           <button 
             type="submit"
             disabled={disabled || !input.trim() || isLive}
