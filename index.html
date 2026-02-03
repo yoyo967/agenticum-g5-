@@ -57,11 +57,11 @@
 
         body {
             margin: 0;
-            overflow: hidden;
             font-family: 'Inter', sans-serif;
             background-color: var(--void);
             color: var(--chrome);
             -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
         }
 
         .mirror-mode {
@@ -100,6 +100,30 @@
 
         .glitch-active {
             animation: glitch 0.2s linear infinite;
+        }
+
+        /* PRINT STYLES FOR PROFESSIONAL PDF EXPORT */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-doc, #printable-doc * {
+                visibility: visible;
+            }
+            #printable-doc {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 2cm !important;
+                box-shadow: none !important;
+                background-color: white !important;
+                color: black !important;
+            }
+            .crt-overlay, .fixed, nav, header, footer {
+                display: none !important;
+            }
         }
     </style>
 <script type="importmap">

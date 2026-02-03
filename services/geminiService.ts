@@ -3,28 +3,36 @@ import { GoogleGenAI, Modality, Type, GenerateContentResponse } from "@google/ge
 import { DeploymentConfig, NodeOutput, FileData, Artifact, GroundingChunk } from "../types";
 
 const CLUSTER_DIRECTIVES: Record<string, string> = {
-  APEX: `ACT AS THE CENTRAL ORCHESTRATOR. YOU ARE A SWARM COMPILER.
-  YOUR ONLY OUTPUT IS A VALID JSON MISSION PLAN. 
-  NEVER EXPLAIN ANYTHING. NEVER START WITH TEXT.
-  CONVERT USER INTENT INTO 4-Node PRODUCTION PLAN.
-  MANDATORY NODES: 
-  - RA-01 (Intel Research)
-  - SP-01 (Strategic Blueprint)
-  - CC-10 (High-End Key Visual)
-  - CC-06 (Cinematic Video Trailer)
-  
-  SCHEMA: {"objectives": [{"id": "string", "label": "string", "assignedNode": "string", "description": "DETAILED_PROMPT_FOR_GENERATOR", "type": "RESEARCH|STRATEGY|IMAGE|VIDEO"}]}`,
-  STRATEGY: "You are the Strategic Lead. Deliver a high-stakes business blueprint. Focus on ROI and market penetration.",
-  INTELLIGENCE: "You are the Intelligence Node. Use tools to find real data. Ground every claim.",
-  CREATION: "You are the Creative Forge. Generate industrial, cinematic visual assets in Obsidian & Chrome style.",
-  NEURAL_MIRROR: "Adversarial Critic. Identify flaws and suggest 10x improvements."
+  APEX: `ACT AS THE CENTRAL ORCHESTRATOR. YOUR ONLY OUTPUT IS A VALID JSON MISSION PLAN. 
+  CONVERT USER INTENT INTO A 4-NODE PRODUCTION PLAN.
+  REQUIRED NODES: RA-01 (Intel), SP-01 (Strategy), CC-10 (Image), CC-06 (Video).
+  SCHEMA: {"objectives": [{"id": "string", "label": "string", "assignedNode": "string", "description": "PROMPT", "type": "RESEARCH|STRATEGY|IMAGE|VIDEO"}]}`,
+  STRATEGY: "Strategic Lead. Deliver high-stakes business blueprint. Focus on ROI and scaling.",
+  INTELLIGENCE: "Intelligence Node. Use Google Search for real-time market data. Ground all claims.",
+  CREATION: "Creative Forge. Generate high-end industrial visual assets in Obsidian & Chrome style.",
+  NEURAL_MIRROR: "Critique the following output. Suggest 3 tactical improvements for higher impact."
 };
 
+const sanitizeJson = (text: string): string => text.replace(/```json/g, '').replace(/```/g, '').trim();
+
 /**
- * Sanitizes model output to extract valid JSON
+ * Sicherer API-Call mit kontrollierten Retries. 
+ * Verhindert UI-Hangs bei Quota-Limits (429).
  */
-const sanitizeJson = (text: string): string => {
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+const callWithRetry = async <T>(fn: () => Promise<T>, retries = 1, delay = 3000): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const errorStr = JSON.stringify(error).toUpperCase();
+    const isQuota = errorStr.includes('429') || errorStr.includes('RESOURCE_EXHAUSTED');
+    
+    if (isQuota && retries > 0) {
+      console.warn(`[G5_KERNEL] Quota limit detected. Retry 1/1 in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return callWithRetry(fn, retries - 1, delay * 2);
+    }
+    throw error;
+  }
 };
 
 export const executeNodeAction = async (
@@ -35,37 +43,36 @@ export const executeNodeAction = async (
   taskType?: string,
   files?: FileData[]
 ): Promise<NodeOutput> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const startTime = Date.now();
   const nodeId = config.nodeId;
+  const nType = (taskType || '').toUpperCase();
+  
+  const isVideo = !isPlanning && (nodeId === 'CC-06' || nType === 'VIDEO');
+  const isImage = !isPlanning && (nodeId === 'CC-10' || nType === 'IMAGE');
 
   try {
-    const fileParts = (files || []).map(f => ({
-      inlineData: { data: f.data, mimeType: f.mimeType }
-    }));
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // --- AUTONOMOUS PRODUCTION: VIDEO (Veo 3.1) ---
-    if (taskType === 'VIDEO' || nodeId === 'CC-06') {
-      const operation = await ai.models.generateVideos({
+    // 1. VIDEO PRODUCTION (VEO 3.1)
+    if (isVideo) {
+      const operation = await callWithRetry(() => ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
-        prompt: `Obsidian & Chrome aesthetic, high-end industrial product trailer, cinematic lighting, ultra-detailed: ${prompt}`,
+        prompt: `Industrial cinematic, Obsidian & Chrome style, 4K render: ${prompt}`,
         config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
-      });
+      }));
       
-      let result = operation;
+      let result = operation as any;
       while (!result.done) {
         await new Promise(r => setTimeout(r, 10000));
         result = await ai.operations.getVideosOperation({ operation: result });
       }
 
-      const downloadLink = result.response?.generatedVideos?.[0]?.video?.uri;
-      if (!downloadLink) throw new Error("Video download link missing from response");
+      const uri = result.response?.generatedVideos?.[0]?.video?.uri;
+      if (!uri) throw new Error("VEO_ASSET_STORAGE_FAILED");
 
-      const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-      if (!response.ok) throw new Error(`Video fetch failed: ${response.statusText}`);
-      
+      const response = await fetch(`${uri}&key=${process.env.API_KEY}`);
       const blob = await response.blob();
-      const base64Video = await new Promise<string>(r => {
+      const base64 = await new Promise<string>((r) => {
         const reader = new FileReader();
         reader.onloadend = () => r(reader.result as string);
         reader.readAsDataURL(blob);
@@ -73,60 +80,68 @@ export const executeNodeAction = async (
 
       return {
         nodeId, status: 'success', data: "Video synthesis complete.",
-        artifacts: [{ type: 'video', content: base64Video, label: `${nodeId}_VEO_PRODUCTION`, metadata: { nodeId } }],
+        artifacts: [{ type: 'video', content: base64, label: `${nodeId}_VEO_ASSET`, metadata: { nodeId } }],
         executionTime: Date.now() - startTime
       };
     }
 
-    // --- AUTONOMOUS PRODUCTION: IMAGE (Imagen 4) ---
-    if (taskType === 'IMAGE' || nodeId === 'CC-10') {
-      const response = await ai.models.generateImages({
+    // 2. IMAGE PRODUCTION (IMAGEN 4)
+    if (isImage) {
+      const response = await callWithRetry(() => ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
-        prompt: `Obsidian and Chrome industrial aesthetic, dark moody cinematic lighting, product photography, 8k: ${prompt}`,
+        prompt: `Obsidian & Chrome industrial style, high-end photography: ${prompt}`,
         config: { numberOfImages: 1, aspectRatio: '16:9' }
-      });
+      })) as any;
       
-      if (!response.generatedImages?.[0]?.image?.imageBytes) {
-        throw new Error("Image bytes missing from response");
-      }
-
       const base64Image = `data:image/png;base64,${response.generatedImages[0].image.imageBytes}`;
       return { 
-        nodeId, status: 'success', data: "Image synthesis complete.", 
-        artifacts: [{ type: 'image', content: base64Image, label: `${nodeId}_HIGH_FIDELITY`, metadata: { nodeId } }], 
+        nodeId, status: 'success', data: "Image production successful.", 
+        artifacts: [{ type: 'image', content: base64Image, label: `${nodeId}_IMAGEN_ASSET`, metadata: { nodeId } }], 
         executionTime: Date.now() - startTime 
       };
     }
 
-    // --- INTELLIGENCE & STRATEGY (Gemini 3 Pro) ---
-    const response = await ai.models.generateContent({
+    // 3. COGNITIVE REASONING (GEMINI 3 PRO)
+    const primaryResponse = await callWithRetry(() => ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: { parts: [...fileParts, { text: prompt }] },
+      contents: { 
+        parts: [
+          ...(files || []).map(f => ({ inlineData: { data: f.data, mimeType: f.mimeType } })),
+          { text: prompt }
+        ] 
+      },
       config: {
-        systemInstruction: CLUSTER_DIRECTIVES[config.nodeId.split('-')[0]] || CLUSTER_DIRECTIVES.STRATEGY,
+        systemInstruction: CLUSTER_DIRECTIVES[nodeId.split('-')[0]] || CLUSTER_DIRECTIVES.STRATEGY,
         tools: (nodeId.startsWith('RA') && !isPlanning) ? [{ googleSearch: {} }] : undefined,
         responseMimeType: isPlanning ? "application/json" : undefined,
-        thinkingConfig: { thinkingBudget: isPlanning ? 32000 : 8000 }
+        thinkingConfig: { thinkingBudget: isPlanning ? 4000 : 12000 }
       }
-    });
+    })) as GenerateContentResponse;
 
-    const jsonText = isPlanning ? sanitizeJson(response.text || "{}") : "";
+    let finalContent = primaryResponse.text || "";
     const artifacts: Artifact[] = [];
     if (!isPlanning) {
-      artifacts.push({ type: 'report', content: response.text || "", label: `${nodeId}_DOSSIER`, metadata: { nodeId } });
+      artifacts.push({ type: nodeId.startsWith('RA') ? 'report' : 'doc', content: finalContent, label: `${nodeId}_DOSSIER`, metadata: { nodeId } });
     }
 
     return {
-      nodeId, status: 'success', data: response.text,
-      grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks || [],
+      nodeId, status: 'success', data: finalContent,
+      grounding: (primaryResponse as any).candidates?.[0]?.groundingMetadata?.groundingChunks || [],
       artifacts,
-      plan: isPlanning ? JSON.parse(jsonText).objectives : undefined,
+      plan: isPlanning ? JSON.parse(sanitizeJson(finalContent)).objectives : undefined,
       executionTime: Date.now() - startTime,
-      thoughtSignature: Math.random().toString(16).slice(2, 10).toUpperCase()
+      thoughtSignature: `0x${Math.random().toString(16).slice(2, 10).toUpperCase()}`
     };
+
   } catch (error: any) {
-    console.error("Execution Error:", error);
-    return { nodeId, status: 'error', data: error.message, executionTime: 0 };
+    console.error(`[G5_ERROR] Node ${nodeId}:`, error.message);
+    const isQuota = error.message?.includes('429') || JSON.stringify(error).includes('429');
+    return { 
+      nodeId, 
+      status: 'error', 
+      data: isQuota ? "RESOURCE_EXHAUSTED: Google API Quota reached for this model. Skipping task." : error.message, 
+      executionTime: 0 
+    };
   }
 };
 
@@ -134,14 +149,11 @@ export const generateBriefingAudio = async (text: string): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
-    contents: [{ parts: [{ text: `High-stakes strategic summary: ${text}` }] }],
+    contents: [{ parts: [{ text: `Attention. Strategic Briefing: ${text}` }] }],
     config: {
       responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
-      }
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
     }
-  });
-  const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  return base64 ? `data:audio/wav;base64,${base64}` : '';
+  }) as any;
+  return `data:audio/wav;base64,${response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data}`;
 };

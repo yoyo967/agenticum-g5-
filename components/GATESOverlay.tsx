@@ -5,9 +5,10 @@ interface GATESOverlayProps {
   isActive: boolean;
   step: 'GROUNDING' | 'ANALYSIS' | 'TRACKING' | 'EVOLUTION' | 'SOVEREIGN' | null;
   nodeId: string;
+  onAbort?: () => void;
 }
 
-const GATESOverlay: React.FC<GATESOverlayProps> = ({ isActive, step, nodeId }) => {
+const GATESOverlay: React.FC<GATESOverlayProps> = ({ isActive, step, nodeId, onAbort }) => {
   if (!isActive) return null;
 
   const steps = [
@@ -21,8 +22,8 @@ const GATESOverlay: React.FC<GATESOverlayProps> = ({ isActive, step, nodeId }) =
   const currentIdx = steps.findIndex(s => s.key === step);
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-void/60 backdrop-blur-md pointer-events-none font-mono">
-      <div className="relative p-16 border-4 border-active/40 bg-void/95 shadow-[0_0_100px_rgba(0,255,136,0.2)]">
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-void/60 backdrop-blur-md font-mono">
+      <div className="relative p-16 border-4 border-active/40 bg-void/95 shadow-[0_0_100px_rgba(0,255,136,0.2)] pointer-events-auto">
         <div className="flex flex-col gap-10 items-center min-w-[350px]">
           <div className="flex items-center gap-6 border-b border-active/20 pb-8 w-full justify-center">
             <div className="w-6 h-6 bg-active shadow-[0_0_25px_#00ff88] animate-ping" />
@@ -49,11 +50,20 @@ const GATESOverlay: React.FC<GATESOverlayProps> = ({ isActive, step, nodeId }) =
             })}
           </div>
 
-          <div className="mt-10 pt-8 border-t border-active/20 w-full text-center">
-            <span className="text-[9px] text-tungsten font-black uppercase tracking-[0.6em] opacity-60">Currently_Engaging_Node</span>
-            <div className="text-3xl text-chrome font-black tracking-widest mt-2">
-              {nodeId || 'SYSTEM'}
+          <div className="mt-6 pt-6 border-t border-active/20 w-full text-center space-y-8">
+            <div>
+               <span className="text-[9px] text-tungsten font-black uppercase tracking-[0.6em] opacity-60">Currently_Engaging_Node</span>
+               <div className="text-3xl text-chrome font-black tracking-widest mt-2">{nodeId || 'SYSTEM'}</div>
             </div>
+            
+            {onAbort && (
+              <button 
+                onClick={onAbort}
+                className="w-full py-4 border-2 border-error/40 text-error text-[10px] font-black uppercase tracking-[0.5em] hover:bg-error hover:text-void transition-all"
+              >
+                ABORT_MISSION_OVERRIDE
+              </button>
+            )}
           </div>
         </div>
       </div>
