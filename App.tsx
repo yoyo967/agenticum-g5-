@@ -53,20 +53,24 @@ const App: React.FC = () => {
   }, []);
 
   const updateNodeStatus = useCallback((id: string, status: NodeStatus, load?: number) => {
+    if (!id) return;
     setNodes(prev => prev.map(n => n.id === id ? { ...n, status, load: load ?? n.load } : n));
   }, []);
 
-  const handleAbort = () => {
+  // Define handleAbort to resolve the "Cannot find name 'handleAbort'" error on line 172.
+  // This function allows users to cancel an active swarm operation via the GATESOverlay.
+  const handleAbort = useCallback(() => {
     abortControllerRef.current = true;
-    setMissionActive(false);
     setIsGatesActive(false);
-    logToTrace('SYSTEM', 'MISSION_ABORTED: Manual override initiated.');
-    audioService.playError();
-  };
+    setMissionActive(false);
+    logToTrace('SYSTEM', 'MISSION_ABORTED: Tactical override initiated. Swarm halted.');
+    // Set all nodes back to online if they were processing
+    setNodes(prev => prev.map(n => n.status === NodeStatus.PROCESSING ? { ...n, status: NodeStatus.ONLINE, load: 5 } : n));
+  }, [logToTrace]);
 
-  const runProductionSwarm = async (plan: any[], initialFiles?: FileData[]) => {
+  const runProductionSwarm = async (plan: StrategicObjective[], initialFiles?: FileData[]) => {
     setMissionActive(true);
-    setObjectives(plan.map(p => ({ ...p, status: 'PENDING', progress: 0 })));
+    setObjectives(plan);
     setIsGatesActive(true);
     setGatesStep('ANALYSIS');
     abortControllerRef.current = false;
@@ -74,6 +78,7 @@ const App: React.FC = () => {
     try {
       for (const task of plan) {
         if (abortControllerRef.current) break;
+        if (!task.assignedNode) continue;
         
         updateNodeStatus(task.assignedNode, NodeStatus.PROCESSING, 98);
         logToTrace('SYSTEM', `SWARM_CORE: Activating node ${task.assignedNode}...`);
@@ -102,21 +107,19 @@ const App: React.FC = () => {
             setObjectives(prev => prev.map(o => o.id === task.id ? { ...o, status: 'COMPLETED', progress: 100 } : o));
           }
         } catch (err: any) {
-          logToTrace('SYSTEM', `CRITICAL_EXCEPTION: ${err.message}`);
+          logToTrace('SYSTEM', `NODE_CRASH: ${task.assignedNode} - ${err.message}`);
         } finally {
           updateNodeStatus(task.assignedNode, NodeStatus.ONLINE, 5);
-          await new Promise(r => setTimeout(r, 1500)); // Minimaler Cooldown
+          await new Promise(r => setTimeout(r, 1000));
         }
       }
 
       if (!abortControllerRef.current) {
         setGatesStep('SOVEREIGN');
-        await new Promise(r => setTimeout(r, 1000));
       }
     } finally {
       setIsGatesActive(false);
       setMissionActive(false);
-      
       if (!abortControllerRef.current && assets.length > 0) {
         setIsFinalizing(true);
         audioService.playSuccess();
@@ -131,13 +134,20 @@ const App: React.FC = () => {
 
     try {
       const result = await executeNodeAction(`MISSION_COMPILATION: ${command}`, { nodeId: 'SN-00' }, true, mirrorMode, undefined, files);
-      if (result.status === 'error') throw new Error(result.data);
-      if (result.plan) {
+      
+      if (result.status === 'error') {
+        throw new Error(result.data);
+      }
+
+      if (result.plan && result.plan.length > 0) {
         logToTrace('SYSTEM', `PLAN_VERIFIED: Orchestrating ${result.plan.length} nodes.`);
         runProductionSwarm(result.plan, files);
+      } else {
+        logToTrace('SYSTEM', 'KERNEL_ORCHESTRATION_ERROR: No valid objectives found in mission plan.');
       }
     } catch (e: any) {
       logToTrace('SYSTEM', `KERNEL_ERROR: ${e.message}`);
+      audioService.playError();
     } finally {
       setIsThinking(false);
       updateNodeStatus('SN-00', NodeStatus.ONLINE, 5);

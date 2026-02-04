@@ -2,12 +2,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { SessionAsset } from '../types';
 
-interface AssetPreviewModalProps {
-  asset: SessionAsset | null;
-  onClose: () => void;
-  onRefine: (asset: SessionAsset) => void;
-}
-
 const AudioVisualizer: React.FC<{ url: string }> = ({ url }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -63,6 +57,82 @@ const AudioVisualizer: React.FC<{ url: string }> = ({ url }) => {
   );
 };
 
+/**
+ * ULTRA_HIGH_FIDELITY_MARKDOWN_PARSER
+ * Verarbeitet Roh-Markdown und rendert sauberes Dokumenten-Layout ohne Steuerzeichen.
+ */
+const DocumentMarkdown: React.FC<{ content: string }> = ({ content }) => {
+  const processLine = (text: string) => {
+    // 1. Entferne Fettdruck-Symbole (**)
+    let cleaned = text.replace(/\*\*(.*?)\*\*/g, '$1');
+    // 2. Entferne Kursiv-Symbole (*)
+    cleaned = cleaned.replace(/\*(.*?)\*/g, '$1');
+    return cleaned;
+  };
+
+  const renderInline = (text: string) => {
+    // Splitte nach ** für lokales Highlighting
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-bold text-black">{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+  };
+
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-6 text-[#1a1a1a] font-sans">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={i} className="h-4" />;
+        
+        // H1 (Haupttitel)
+        if (trimmed.startsWith('# ')) {
+          const text = trimmed.replace(/^#\s*/, '');
+          return <h1 key={i} className="text-4xl font-black uppercase tracking-tighter mb-8 border-b-4 border-black pb-4 leading-tight">{renderInline(text)}</h1>;
+        }
+        
+        // H2 (Sektionstitel)
+        if (trimmed.startsWith('## ')) {
+          const text = trimmed.replace(/^##\s*/, '');
+          return <h2 key={i} className="text-2xl font-black uppercase tracking-tight mt-12 mb-6 border-b-2 border-black/10 pb-2">{renderInline(text)}</h2>;
+        }
+        
+        // H3 (Subtitel)
+        if (trimmed.startsWith('### ')) {
+          const text = trimmed.replace(/^###\s*/, '');
+          return <h3 key={i} className="text-xl font-bold uppercase tracking-wide mt-8 mb-4">{renderInline(text)}</h3>;
+        }
+
+        // Trenner
+        if (trimmed === '---' || trimmed === '***') return <hr key={i} className="my-10 border-t-2 border-black/5" />;
+
+        // Listenpunkte
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || /^\d+\.\s/.test(trimmed)) {
+          const text = trimmed.replace(/^([-*]|\d+\.)\s*/, '');
+          return (
+            <div key={i} className="flex gap-4 pl-6 items-start">
+              <div className="w-1.5 h-1.5 bg-black mt-2.5 shrink-0" />
+              <p className="text-[17px] leading-relaxed flex-1">{renderInline(text)}</p>
+            </div>
+          );
+        }
+
+        // Standard-Absatz
+        return <p key={i} className="text-[17px] leading-relaxed text-justify">{renderInline(line)}</p>;
+      })}
+    </div>
+  );
+};
+
+interface AssetPreviewModalProps {
+  asset: SessionAsset | null;
+  onClose: () => void;
+  onRefine: (asset: SessionAsset) => void;
+}
+
 const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, onRefine }) => {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -100,7 +170,13 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, o
       switch (format) {
         case 'MD': downloadFile(new Blob([rawContent], { type: 'text/markdown' }), `${filename}.md`); break;
         case 'TXT': downloadFile(new Blob([rawContent], { type: 'text/plain' }), `${filename}.txt`); break;
-        case 'PDF': window.print(); break;
+        case 'PDF': 
+          setIsExportOpen(false);
+          // Kurzer Delay um das UI-Dropdown sauber zu schließen
+          setTimeout(() => {
+            window.print();
+          }, 300);
+          break;
       }
     }
     setIsExportOpen(false);
@@ -110,10 +186,12 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, o
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-in fade-in zoom-in-95 duration-500 font-mono">
-      <div className="absolute inset-0 bg-void/98 backdrop-blur-3xl" onClick={onClose}></div>
+      {/* SHROUD */}
+      <div className="absolute inset-0 bg-void/98 backdrop-blur-3xl no-print" onClick={onClose}></div>
       
-      <div className="relative w-full max-w-[95vw] h-[92vh] bg-obsidian border border-steel shadow-[0_0_300px_rgba(0,0,0,1)] flex flex-col overflow-hidden">
-        {/* HEADER AREA - MATCHING SCREENSHOT */}
+      {/* MODAL BODY */}
+      <div className="relative w-full max-w-[95vw] h-[92vh] bg-obsidian border border-steel shadow-[0_0_300px_rgba(0,0,0,1)] flex flex-col overflow-hidden no-print">
+        {/* HEADER */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-steel bg-[#080808] z-10 relative">
           <div className="flex items-center gap-6">
             <div className={`w-3.5 h-3.5 shadow-[0_0_15px_currentColor] ${asset.type === 'IMAGE' ? 'text-neon bg-neon' : asset.type === 'AUDIO' ? 'text-thinking bg-thinking' : asset.type === 'VIDEO' ? 'text-warning bg-warning' : 'text-active bg-active'}`} />
@@ -121,7 +199,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, o
               <span className="text-[13px] font-black text-chrome uppercase tracking-[0.8em]">
                 {asset.nodeId.replace('-', ' - ')} _ D O S S I E R
               </span>
-              <span className="text-[8px] text-tungsten font-black uppercase tracking-[0.4em] opacity-40">
+              <span className="text-[8px] text-tungsten font-black uppercase tracking-widest opacity-40">
                 SOURCE: {asset.nodeId} // FORMAT: {asset.type}
               </span>
             </div>
@@ -139,41 +217,39 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, o
           </div>
         </div>
 
-        {/* CONTENT VIEWPORT */}
+        {/* VIEWPORT */}
         <div className="flex-1 overflow-hidden bg-[#0a0a0a] relative flex flex-col items-center justify-start p-8 lg:p-12 overflow-y-auto custom-scrollbar">
           {asset.type === 'IMAGE' && asset.url && (
             <img src={asset.url} alt={asset.label} className="max-w-full max-h-full border border-steel shadow-2xl object-contain animate-in fade-in duration-1000" />
           )}
 
           {asset.type === 'VIDEO' && asset.url && (
-            <div className="w-full max-w-5xl aspect-video relative group animate-in zoom-in-95 duration-700">
+            <div className="w-full max-w-5xl aspect-video relative animate-in zoom-in-95 duration-700">
                <video ref={videoRef} src={asset.url} controls className="w-full h-full border border-steel shadow-2xl bg-black" />
-               <div className="absolute top-4 left-4 p-2 bg-void/80 border border-warning/40 text-warning text-[8px] font-black uppercase tracking-widest">Veo_3.1_Production_Ready</div>
             </div>
           )}
 
           {asset.type === 'AUDIO' && asset.url && (
             <div className="w-full max-w-2xl bg-obsidian p-12 border border-steel flex flex-col items-center gap-10">
                <AudioVisualizer url={asset.url} />
-               <div className="text-[10px] text-thinking font-black uppercase tracking-[0.4em]">Synthetic_Voice_Relay</div>
             </div>
           )}
 
           {isDoc && (
-            <div id="printable-doc" className="w-full max-w-5xl min-h-full bg-white text-[#1a1a1a] p-16 lg:p-24 shadow-2xl font-sans relative mb-20 animate-in slide-in-from-bottom-4 duration-700">
-              <div className="border-b border-[#eeeeee] pb-10 mb-14 flex justify-between items-end font-mono">
-                <div>
-                   <div className="text-[9px] font-bold uppercase tracking-[0.5em] text-[#999] mb-4">INTEL_REPORT_SDR_V5.5</div>
-                   <div className="text-5xl font-black uppercase tracking-tight text-[#0a0a0a]">{asset.nodeId}_DOSSIER</div>
+            <div className="w-full max-w-4xl min-h-full bg-white text-[#1a1a1a] p-16 lg:p-24 shadow-2xl font-sans relative mb-20 animate-in slide-in-from-bottom-4 duration-700">
+              <div className="border-b-4 border-black pb-10 mb-14 flex justify-between items-end">
+                <div className="font-mono">
+                   <div className="text-[10px] font-black uppercase tracking-[0.5em] text-[#999] mb-4">INTEL_REPORT_SDR_V5.5</div>
+                   <div className="text-5xl lg:text-6xl font-black uppercase tracking-tighter text-[#0a0a0a] leading-none">{asset.nodeId}_DOSSIER</div>
                 </div>
-                <div className="text-right text-[9px] font-bold uppercase tracking-[0.3em] text-[#999] leading-relaxed pb-1">
-                   NODE: {asset.nodeId}<br/>TIMESTAMP: {asset.timestamp}
+                <div className="text-right text-[10px] font-mono font-black uppercase tracking-[0.3em] text-[#999] leading-relaxed pb-1">
+                   ORIGIN: {asset.nodeId}<br/>TS: {asset.timestamp}
                 </div>
               </div>
-              <div className="prose prose-lg max-w-none whitespace-pre-wrap text-[#222] leading-[1.8] text-[16px] font-sans">
-                {asset.content}
+              <div className="max-w-none text-[#222]">
+                <DocumentMarkdown content={asset.content || ''} />
               </div>
-              <div className="mt-20 pt-10 border-t border-[#eeeeee] flex justify-between items-center opacity-30 font-mono text-[8px] uppercase tracking-widest">
+              <div className="mt-32 pt-10 border-t border-[#eeeeee] flex justify-between items-center opacity-30 font-mono text-[9px] uppercase tracking-widest text-[#999]">
                 <span>© 2026 Agenticum G5 Sovereign OS</span>
                 <span>Verification_Hash: 0x{Math.random().toString(16).slice(2, 10).toUpperCase()}</span>
               </div>
@@ -181,7 +257,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, o
           )}
         </div>
 
-        {/* FOOTER ACTION BAR - MATCHING SCREENSHOT */}
+        {/* FOOTER */}
         <div className="px-8 py-5 border-t border-steel bg-[#080808] flex justify-between items-center z-20 relative">
            <div className="flex items-center gap-4">
               <div className="w-2 h-2 bg-active shadow-[0_0_10px_#00ff88]" />
@@ -205,7 +281,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, o
                       </button>
                     ) : (
                       <>
-                        <button onClick={() => handleExport('PDF')} className="w-full text-left p-4 hover:bg-neon/10 text-chrome hover:text-neon text-[9px] font-black uppercase tracking-widest border border-transparent hover:border-neon/20 transition-all">Document (PDF)</button>
+                        <button onClick={() => handleExport('PDF')} className="w-full text-left p-4 hover:bg-neon/10 text-chrome hover:text-neon text-[9px] font-black uppercase tracking-widest border border-transparent hover:border-neon/20 transition-all">Generate PDF (Print)</button>
                         <button onClick={() => handleExport('MD')} className="w-full text-left p-4 hover:bg-neon/10 text-chrome hover:text-neon text-[9px] font-black uppercase tracking-widest border border-transparent hover:border-neon/20 transition-all">Markdown (MD)</button>
                         <button onClick={() => handleExport('TXT')} className="w-full text-left p-4 hover:bg-neon/10 text-chrome hover:text-neon text-[9px] font-black uppercase tracking-widest border border-transparent hover:border-neon/20 transition-all">Plain Text (TXT)</button>
                       </>
@@ -216,6 +292,29 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({ asset, onClose, o
            </div>
         </div>
       </div>
+
+      {/* 
+          OFF-SCREEN PRINT CONTAINER
+          Dieser Container wird nur beim Drucken sichtbar und enthält das reine Dokument.
+      */}
+      {isDoc && (
+        <div id="printable-doc-container" className="hidden print:block bg-white p-20 font-sans">
+           <div className="border-b-8 border-black pb-10 mb-14 flex justify-between items-end">
+              <div>
+                 <h1 className="text-6xl font-black uppercase tracking-tighter text-black">{asset.nodeId}_DOSSIER</h1>
+                 <p className="font-mono uppercase mt-4 text-[#999] tracking-widest">INTEL_REPORT_SDR_V5.5</p>
+              </div>
+              <div className="text-right font-mono text-sm font-bold uppercase tracking-widest text-[#999]">
+                 {asset.timestamp}
+              </div>
+           </div>
+           <DocumentMarkdown content={asset.content || ''} />
+           <div className="mt-40 pt-10 border-t border-[#eee] flex justify-between items-center opacity-30 font-mono text-[9px] uppercase tracking-widest text-black">
+              <span>© 2026 Agenticum G5 Sovereign OS // INTERNAL_USE_ONLY</span>
+              <span>VERIFICATION: 0x{Math.random().toString(16).slice(2, 12).toUpperCase()}</span>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
